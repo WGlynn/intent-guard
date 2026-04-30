@@ -30,6 +30,7 @@ Three end-to-end suites, each wiring `IntentGuardModule` + an adapter + a mock S
 | [`test/IntegrationDAOTreasury.t.sol`](./test/IntegrationDAOTreasury.t.sol) | DAOTreasuryAdapter | happy path withdrawal, over-cap rejected at execute |
 | [`test/IntegrationRoleGrant.t.sol`](./test/IntegrationRoleGrant.t.sol) | RoleGrantAdapter | grant on allowed account, attacker-grant blocked, frozen-role blocked |
 | [`test/IntegrationMerkleRoot.t.sol`](./test/IntegrationMerkleRoot.t.sol) | MerkleRootSetAdapter | announced root applied, unannounced root blocked at execute |
+| [`test/IntegrationOwnership.t.sol`](./test/IntegrationOwnership.t.sol) | OwnershipTransferAdapter | transfer to allowlisted, blocked to attacker, renounce default-disabled. Uses [`test/helpers/IntegrationBase.t.sol`](./test/helpers/IntegrationBase.t.sol) — shared module + Safe + signer scaffolding for future integration tests. |
 
 The integration coverage demonstrates the module's adapter contract composes across action types — same module + same attestation flow drives any `IActionAdapter`.
 
