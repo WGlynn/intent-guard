@@ -130,4 +130,38 @@ contract OwnershipTransferAdapterTest is Test {
         vm.expectRevert(OwnershipTransferAdapter.NotOwner.selector);
         adapter.setAllowedNewOwner(target, newOwnerLegit, true);
     }
+
+    // ============ adversarial: zero-owner & renounce-bypass checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter. Must fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(OwnershipTransferAdapter.ZeroOwner.selector);
+        new OwnershipTransferAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: `transferOwnership(address(0))`
+    /// is semantically equivalent to `renounceOwnership()` in OZ Ownable.
+    /// Before the fix, an adapter owner could (intentionally or by mistake)
+    /// allowlist address(0) as a candidate new-owner — bypassing the
+    /// explicit `renounceAllowed = false` gate. The adapter now fails closed
+    /// on any zero-address transfer regardless of allowlist state.
+    function test_validate_revertsTransferToZeroAddress_evenWhenAllowlisted() public {
+        // Owner naively allowlists address(0). Renounce remains disabled.
+        vm.prank(owner);
+        adapter.setAllowedNewOwner(target, address(0), true);
+
+        bytes memory data = _transferCalldata(address(0));
+        vm.expectRevert(OwnershipTransferAdapter.TransferToZero.selector);
+        adapter.validate(target, 0, data, bytes32(0));
+    }
+
+    /// @notice Adversarial regression: even on a target where renounce is
+    /// allowed, transferOwnership(0) must still fail closed — the dedicated
+    /// renounce selector is the only legitimate path to renounce.
+    function test_validate_revertsTransferToZero_evenWhenRenounceAllowed() public {
+        bytes memory data = _transferCalldata(address(0));
+        vm.expectRevert(OwnershipTransferAdapter.TransferToZero.selector);
+        adapter.validate(targetRenounceOK, 0, data, bytes32(0));
+    }
 }

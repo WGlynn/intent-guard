@@ -54,6 +54,8 @@ contract OwnershipTransferAdapter is IActionAdapter {
     error BadSelector();
     error ActionNotAllowed();
     error NewOwnerNotAllowed();
+    error ZeroOwner();
+    error TransferToZero();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -61,6 +63,7 @@ contract OwnershipTransferAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -90,6 +93,14 @@ contract OwnershipTransferAdapter is IActionAdapter {
 
         if (action == Action.Transfer) {
             if (!pol.transferAllowed) revert ActionNotAllowed();
+            // `transferOwnership(address(0))` is semantically equivalent to
+            // `renounceOwnership()` in OZ Ownable. Without this check, a
+            // signer (or owner who allowlisted address(0)) could bypass the
+            // dedicated `renounceAllowed` gate by routing the renounce
+            // through the transfer selector. Reject zero-address transfers
+            // unconditionally — callers wanting to renounce must use the
+            // renounce selector with `renounceAllowed = true`.
+            if (newOwner == address(0)) revert TransferToZero();
             if (!allowedNewOwner[target][newOwner]) revert NewOwnerNotAllowed();
         } else {
             if (!pol.renounceAllowed) revert ActionNotAllowed();
