@@ -36,3 +36,25 @@ jobs:
 
       - name: Run tests (via-ir)
         run: forge test --via-ir
+
+  slither:
+    name: slither static analysis
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry (for slither remappings)
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.4.0
+        continue-on-error: true
+        with:
+          target: contracts/
+          slither-args: --exclude-dependencies --exclude-low --exclude-informational --filter-paths "lib/"
+          fail-on: high
