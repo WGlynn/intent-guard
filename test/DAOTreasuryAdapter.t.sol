@@ -156,4 +156,41 @@ contract DAOTreasuryAdapterTest is Test {
         vm.expectRevert(DAOTreasuryAdapter.NotOwner.selector);
         adapter.setRequireRecipientAllowlist(true);
     }
+
+    // ============ adversarial: zero-address & boundary checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter (no asset policies, recipient allowlist, or
+    /// allowlist-enable toggles can ever be set). Must fail closed at
+    /// construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(DAOTreasuryAdapter.ZeroOwner.selector);
+        new DAOTreasuryAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: with `requireRecipientAllowlist`
+    /// off (the default), `recipient = address(0)` would pass validate,
+    /// allowing a signed intent to burn treasury funds. Many real treasury
+    /// implementations either revert internally or silently send to the zero
+    /// address — neither outcome is a legitimate "withdraw". Adapter should
+    /// fail closed on a zero recipient regardless of allowlist policy.
+    function test_validate_revertsOnZeroRecipient() public {
+        bytes memory data = _withdrawCalldata(address(0), asset, AMOUNT_BELOW_CAP);
+        vm.expectRevert(DAOTreasuryAdapter.ZeroRecipient.selector);
+        adapter.validate(treasury, 0, data, bytes32(0));
+    }
+
+    /// @notice Adversarial review finding (defense in depth): even when the
+    /// recipient allowlist is enabled and address(0) was somehow added to
+    /// it, the zero-recipient check should still fire first.
+    function test_validate_revertsOnZeroRecipient_evenWhenAllowlisted() public {
+        vm.startPrank(owner);
+        adapter.setRequireRecipientAllowlist(true);
+        adapter.setRecipientAllowed(address(0), true);
+        vm.stopPrank();
+
+        bytes memory data = _withdrawCalldata(address(0), asset, AMOUNT_BELOW_CAP);
+        vm.expectRevert(DAOTreasuryAdapter.ZeroRecipient.selector);
+        adapter.validate(treasury, 0, data, bytes32(0));
+    }
 }

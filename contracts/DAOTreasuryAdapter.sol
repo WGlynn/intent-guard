@@ -54,6 +54,8 @@ contract DAOTreasuryAdapter is IActionAdapter {
     error AssetNotAllowed();
     error AmountExceedsCap();
     error RecipientNotAllowed();
+    error ZeroOwner();
+    error ZeroRecipient();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -61,6 +63,7 @@ contract DAOTreasuryAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -90,6 +93,14 @@ contract DAOTreasuryAdapter is IActionAdapter {
     /// @inheritdoc IActionAdapter
     function validate(address, uint256, bytes calldata data, bytes32) external view {
         (address recipient, address asset, uint256 amount) = _decode(data);
+
+        // Always reject the zero-address as a recipient regardless of
+        // allowlist policy. Burning treasury funds via withdraw(0, ...)
+        // is never the intent, and the zero-address is impossible to
+        // explicitly add via setRecipientAllowed in any meaningful way
+        // (an off-by-default allowlist would still let it slip through
+        // when requireRecipientAllowlist is false). Fail closed.
+        if (recipient == address(0)) revert ZeroRecipient();
 
         AssetPolicy memory pol = assetPolicy[asset];
         if (!pol.allowed) revert AssetNotAllowed();
