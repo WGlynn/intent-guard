@@ -256,52 +256,107 @@ contract IntentGuardModule {
     ) internal view {
         if (attestations.length < vault.threshold) revert InsufficientSignatures();
 
-        uint256 valid;
         address lastSigner;
         uint64 oldest = type(uint64).max;
         uint64 newest;
 
         for (uint256 i = 0; i < attestations.length; i++) {
             Attestation calldata att = attestations[i];
-            if (!isSigner[vaultId][att.signer]) revert BadSignature();
+
             if (att.signer <= lastSigner) revert DuplicateSigner();
             lastSigner = att.signer;
-
-            if (att.expiresAt < block.timestamp || att.expiresAt > proposalExpiresAt) revert SignatureNotFresh();
-            if (att.signedAt > block.timestamp) revert SignatureNotFresh();
-            if (block.timestamp - att.signedAt > vault.freshWindowSecs) revert SignatureNotFresh();
 
             if (att.signedAt < oldest) oldest = att.signedAt;
             if (att.signedAt > newest) newest = att.signedAt;
 
-            bytes32 digest = keccak256(
-                abi.encodePacked(
-                    "\x19Ethereum Signed Message:\n32",
-                    keccak256(
-                        abi.encode(
-                            ATTESTATION_TYPEHASH,
-                            vaultId,
-                            vault.nonce,
-                            target,
-                            value,
-                            dataHash,
-                            intentHash,
-                            adapter,
-                            att.signedAt,
-                            att.expiresAt,
-                            block.chainid,
-                            address(this)
-                        )
-                    )
-                )
+            _verifyAttestation(
+                vaultId,
+                vault,
+                target,
+                value,
+                dataHash,
+                intentHash,
+                adapter,
+                proposalExpiresAt,
+                att
             );
-
-            if (_recover(digest, att.signature) != att.signer) revert BadSignature();
-            valid += 1;
         }
 
-        if (valid < vault.threshold) revert InsufficientSignatures();
         if (newest - oldest > vault.freshWindowSecs) revert SignatureNotFresh();
+    }
+
+    /// @notice Per-attestation validation: signer membership, freshness, and
+    /// signature recovery against the canonical attestation digest.
+    /// @dev Extracted from `_verifyAttestations` so the outer loop fits within
+    /// the legacy compilation pipeline's stack budget. Behavior preserved.
+    function _verifyAttestation(
+        bytes32 vaultId,
+        VaultConfig storage vault,
+        address target,
+        uint256 value,
+        bytes32 dataHash,
+        bytes32 intentHash,
+        address adapter,
+        uint64 proposalExpiresAt,
+        Attestation calldata att
+    ) internal view {
+        if (!isSigner[vaultId][att.signer]) revert BadSignature();
+
+        if (att.expiresAt < block.timestamp || att.expiresAt > proposalExpiresAt) revert SignatureNotFresh();
+        if (att.signedAt > block.timestamp) revert SignatureNotFresh();
+        if (block.timestamp - att.signedAt > vault.freshWindowSecs) revert SignatureNotFresh();
+
+        bytes32 digest = _attestationDigest(
+            vaultId,
+            vault.nonce,
+            target,
+            value,
+            dataHash,
+            intentHash,
+            adapter,
+            att.signedAt,
+            att.expiresAt
+        );
+
+        if (_recover(digest, att.signature) != att.signer) revert BadSignature();
+    }
+
+    /// @notice Compute the EIP-191 digest a signer must sign over.
+    /// @dev Extracted from `_verifyAttestations` so the loop body fits within
+    /// the legacy compilation pipeline's stack budget. Bytecode under the
+    /// optimizer is equivalent to the inline form.
+    function _attestationDigest(
+        bytes32 vaultId,
+        uint64 vaultNonce,
+        address target,
+        uint256 value,
+        bytes32 dataHash,
+        bytes32 intentHash,
+        address adapter,
+        uint64 signedAt,
+        uint64 expiresAt
+    ) internal view returns (bytes32) {
+        return keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n32",
+                keccak256(
+                    abi.encode(
+                        ATTESTATION_TYPEHASH,
+                        vaultId,
+                        vaultNonce,
+                        target,
+                        value,
+                        dataHash,
+                        intentHash,
+                        adapter,
+                        signedAt,
+                        expiresAt,
+                        block.chainid,
+                        address(this)
+                    )
+                )
+            )
+        );
     }
 
     function _recover(bytes32 digest, bytes calldata signature) internal pure returns (address) {
