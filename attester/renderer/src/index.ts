@@ -13,7 +13,7 @@
 //   4. Mirror the decoder in firmware/src/adapters/<same-name>.rs
 //   5. Add a regression test in ./__test__/
 
-export { renderIntent, computeIntentHash } from "./render.js";
+export { renderIntent, computeIntentHash, canonicalSerialise } from "./render.js";
 export type { IntentSchema, RenderedIntent, RenderLine } from "./schema.js";
 export { ADAPTERS, registerAdapter, getAdapter } from "./adapters/index.js";
 export type { Adapter } from "./adapters/index.js";

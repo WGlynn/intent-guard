@@ -1,7 +1,7 @@
 {
-  "name": "@intentguard/attester-renderer",
+  "name": "@intentguard/attester-sdk",
   "version": "0.1.0",
-  "description": "Canonical intent renderer for the intentguard attester. Used by the host bridge and mirrored in firmware.",
+  "description": "Developer SDK for building intent bundles and testing intentguard attester flows.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -12,11 +12,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/__test__/render.test.ts",
-    "new-adapter": "tsx src/scripts/new-adapter.ts",
-    "vectors": "tsx src/scripts/write-vectors.ts"
+    "example": "tsx examples/basic.ts"
   },
   "dependencies": {
+    "@intentguard/attester-renderer": "file:../renderer",
+    "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.4.0"
   },
   "devDependencies": {

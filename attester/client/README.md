@@ -39,3 +39,14 @@ Every host-to-attester bundle should contain:
 - expiry.
 
 The attester must recompute all hashes before rendering.
+
+## Easiest developer path
+
+Use `attester/sdk` first:
+
+1. Build an intent bundle in app code.
+2. Send it to `createEmulatorAttester()` in tests.
+3. Verify the returned approval in your guard tests.
+4. Swap the emulator for the host bridge when hardware is available.
+
+This keeps protocol teams from blocking on USB, firmware, or device procurement while they are still proving the integration.

@@ -99,6 +99,27 @@ MVP 2 can be:
 - supply-chain controls,
 - tamper-resistant key storage.
 
+## Developer experience
+
+The fastest way to try the attester is the software emulator and SDK:
+
+```ts
+import { buildIntentBundle, createEmulatorAttester } from "@intentguard/attester-sdk";
+
+const bundle = buildIntentBundle({
+  network: "solana",
+  vault,
+  nonce: 1n,
+  actionKind: 1,
+  actionArgs,
+});
+
+const attester = createEmulatorAttester();
+const approval = await attester.attest(bundle);
+```
+
+This lets a protocol team integrate the attestation requirement before buying or flashing hardware. The emulator is for development only. Production should use hardware or secure-enclave-backed attesters.
+
 ## Message flow
 
 ```text
@@ -119,8 +140,10 @@ MVP 2 can be:
 - `BUILD.md`: reference hardware path and rollout tiers.
 - `renderer/`: TypeScript renderer, canonical intent hashing, adapters, and tests.
 - `host/`: USB serial host bridge and software emulator.
+- `sdk/`: developer-facing bundle builder and emulator attester.
 - `firmware/`: no_std Rust firmware scaffold with matching on-device adapters.
 - `client/README.md`: host-client transport requirements.
+- `vectors/`: shared test-vector workflow for renderer, firmware, and on-chain tests.
 
 ## How to use this folder today
 
@@ -137,6 +160,8 @@ Example emulator flow:
 ```sh
 cd attester/renderer
 npm test
+npm run vectors
+npm run new-adapter -- transfer-admin-v2 10
 
 cd ../host
 npm run emulate

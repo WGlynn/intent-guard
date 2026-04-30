@@ -95,6 +95,8 @@ The fix is a separate attester: a small, protocol-neutral device or locked-down 
 
 See [`attester/`](attester/) for the draft spec.
 
+Developers can start without hardware by using [`attester/sdk`](attester/sdk) and the software emulator. The intended path is: build an intent bundle, render it locally, get an emulator attestation in tests, then replace the emulator with a hardware or secure-enclave attester for production.
+
 ## EVM integration
 
 1. Deploy `IntentGuardModule`.

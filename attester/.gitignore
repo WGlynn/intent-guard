@@ -1,7 +1,9 @@
 renderer/node_modules/
 host/node_modules/
+sdk/node_modules/
 renderer/dist/
 host/dist/
+sdk/dist/
 firmware/target/
 .DS_Store
 *.log
