@@ -34,7 +34,7 @@ What each adapter *cannot* defend against — same caveats as the module:
 
 - `IntentGuardModule.sol` is unaudited. The stack-depth refactor (PR upstream) preserves behavior but has not been independently reviewed.
 - Each new adapter has unit + integration coverage but has not been independently reviewed.
-- Integration test for the stale-signature path is stubbed; the freshness invariant has unit-level coverage in the module but a follow-up debug pass is needed for the end-to-end signing flow.
+- Integration tests cover happy paths, veto, cool-off, cap rejection, role allowlist enforcement, role freezing, and the stale-signature freshness invariant end-to-end.
 - `slither` / `mythril` / formal verification has not been run on this fork's contracts.
 
 ## Disclosure window

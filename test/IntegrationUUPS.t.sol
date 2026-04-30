@@ -289,8 +289,42 @@ contract IntegrationUUPSTest is Test {
         module.execute(proposalId, upgradeData);
     }
 
-    // TODO: stale-signature integration path — pending freshness-edge debug.
-    // Unit-level coverage of the freshness invariant lives in the module's
-    // own _verifyAttestations checks; the end-to-end signing flow has a
-    // timing nuance worth a follow-up commit.
+    // ============ stale signature ============
+
+    function test_endToEnd_staleSignaturesRejectAtQueue() public {
+        // Anchor block.timestamp to a known starting value so the freshness
+        // arithmetic is unambiguous.
+        vm.warp(10_000);
+
+        bytes memory upgradeData = abi.encodeWithSignature("upgradeTo(address)", address(newImpl));
+
+        // Sign at T=10_000, then warp past the freshness window.
+        uint64 oldSignedAt = uint64(block.timestamp);
+        uint64 expiresAt = oldSignedAt + 200_000; // far enough out to clear the proposalExpiresAt check
+        bytes32 intent = adapter.intentHash(address(proxy), 0, upgradeData);
+
+        AttestPayload memory p;
+        p.vaultId = VAULT_ID;
+        p.vaultNonce = 0;
+        p.target = address(proxy);
+        p.value = 0;
+        p.dataHash = keccak256(upgradeData);
+        p.intentHash = intent;
+        p.adapterAddr = address(adapter);
+        p.signedAt = oldSignedAt;
+        p.expiresAt = expiresAt;
+
+        IntentGuardModule.Attestation[] memory atts = _atts(keyLow, keyMid, p);
+
+        // Now warp past the freshness window
+        vm.warp(uint256(oldSignedAt) + uint256(FRESH_WINDOW) + 1);
+
+        uint64 proposalExpiresAt = uint64(block.timestamp) + MIN_PROPOSAL_LIFETIME + 100;
+
+        vm.expectRevert(IntentGuardModule.SignatureNotFresh.selector);
+        module.queue(
+            VAULT_ID, address(proxy), 0, upgradeData, intent, address(adapter),
+            proposalExpiresAt, atts
+        );
+    }
 }

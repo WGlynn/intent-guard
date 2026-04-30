@@ -62,7 +62,7 @@ The 5-invariant composition (intent binding + freshness + cool-off + oracle-boun
 
 - **Unaudited.** Same caveat as upstream. Adapters and the module's refactor are starting points for protocol-specific integration and review, not drop-in production security.
 - **Tracking upstream.** Improvements that aren't VibeSwap-specific (e.g. the stack-depth fix, generally-useful adapters) are filed as upstream PRs first.
-- **Integration testing pending.** The integration test covers happy / veto / cool-off paths. The stale-signature path is stubbed pending a follow-up debug pass on the EIP-191 timing flow.
+- **Integration testing.** The integration tests cover happy / veto / cool-off / cap-rejection / role-allowlist / freezes / freshness paths.
 
 ## Build & test
 
