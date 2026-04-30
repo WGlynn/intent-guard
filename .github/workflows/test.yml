@@ -1,0 +1,38 @@
+name: forge
+
+on:
+  push:
+    branches: [main, "fix/**", "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show versions
+        run: |
+          forge --version
+          solc --version || true
+
+      - name: Build (default profile, no --via-ir)
+        run: forge build --sizes
+
+      - name: Build (via-ir profile, parity check)
+        run: forge build --via-ir
+
+      - name: Run tests
+        run: forge test -vv
+
+      - name: Run tests (via-ir)
+        run: forge test --via-ir
