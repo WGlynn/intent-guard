@@ -117,4 +117,32 @@ contract MerkleRootSetAdapterTest is Test {
         vm.expectRevert(MerkleRootSetAdapter.NotOwner.selector);
         adapter.announceMerkleRoot(target, ROOT_MALICIOUS);
     }
+
+    // ============ adversarial: zero-owner & validate-decode-consistency checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter. Must fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(MerkleRootSetAdapter.ZeroOwner.selector);
+        new MerkleRootSetAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: when a target was configured with
+    /// `requireAnnouncement = false`, the previous validate() implementation
+    /// skipped `_decode()` entirely. A malformed calldata payload (wrong
+    /// selector or wrong length) would pass validate without revert. Adapter
+    /// now always decodes for selector + length sanity.
+    function test_validate_revertsOnMalformedCalldata_announcementBypassed() public {
+        bytes memory data = abi.encodeWithSignature("notMerkleRoot(bytes32)", ROOT_MALICIOUS);
+        vm.expectRevert(MerkleRootSetAdapter.BadSelector.selector);
+        adapter.validate(targetNoAnnounce, 0, data, bytes32(0));
+    }
+
+    /// @notice Companion regression: bypass path with truncated calldata
+    /// must also revert with BadSelector.
+    function test_validate_revertsOnTruncatedCalldata_announcementBypassed() public {
+        bytes memory data = abi.encodePacked(adapter.SET_MERKLE_ROOT_SELECTOR(), bytes16(0));
+        vm.expectRevert(MerkleRootSetAdapter.BadSelector.selector);
+        adapter.validate(targetNoAnnounce, 0, data, bytes32(0));
+    }
 }

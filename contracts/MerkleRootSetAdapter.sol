@@ -63,6 +63,7 @@ contract MerkleRootSetAdapter is IActionAdapter {
     error BadSelector();
     error TargetNotAllowed();
     error RootNotAnnounced();
+    error ZeroOwner();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -70,6 +71,7 @@ contract MerkleRootSetAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -101,8 +103,12 @@ contract MerkleRootSetAdapter is IActionAdapter {
         TargetPolicy memory pol = targetPolicy[target];
         if (!pol.allowed) revert TargetNotAllowed();
 
+        // Always decode for selector + length sanity, even when
+        // pre-announcement is bypassed. Otherwise targets with
+        // requireAnnouncement = false would skip BadSelector entirely
+        // and let malformed calldata propagate to the Safe call layer.
+        bytes32 root = _decode(data);
         if (pol.requireAnnouncement) {
-            bytes32 root = _decode(data);
             if (!announcement[target][root].announced) revert RootNotAnnounced();
         }
     }
