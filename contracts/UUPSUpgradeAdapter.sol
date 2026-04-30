@@ -49,6 +49,7 @@ contract UUPSUpgradeAdapter is IActionAdapter {
     error ProxyNotAllowed();
     error ImplNotAllowed();
     error CodehashMismatch();
+    error ZeroOwner();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -56,6 +57,7 @@ contract UUPSUpgradeAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -122,6 +124,14 @@ contract UUPSUpgradeAdapter is IActionAdapter {
             newImpl = abi.decode(data[4:], (address));
             callData = "";
         } else if (selector == UPGRADE_TO_AND_CALL_SELECTOR) {
+            // Minimum ABI-encoding of (address, bytes) is:
+            //   32 bytes (address slot)
+            // + 32 bytes (offset to bytes)
+            // + 32 bytes (bytes length)
+            // = 96 bytes minimum after the selector. Reject anything
+            // shorter with BadSelector so callers get a clean failure
+            // mode instead of a downstream abi.decode revert.
+            if (data.length < 4 + 96) revert BadSelector();
             (newImpl, callData) = abi.decode(data[4:], (address, bytes));
         } else {
             revert BadSelector();
