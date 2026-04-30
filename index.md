@@ -81,6 +81,7 @@ The fix is a separate attester: a small, protocol-neutral device or locked-down 
 
 The full design, threat model, and reference implementations.
 
+- [Try the attester live in your browser](playground.html)
 - [Whitepaper](intentguard.html)
 - [How to use it](docs/HOWTO.html)
 - [Attester spec](attester/spec/ATTESTER_SPEC.html)
