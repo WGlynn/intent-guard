@@ -30,9 +30,14 @@ Three end-to-end suites, each wiring `IntentGuardModule` + an adapter + a mock S
 | [`test/IntegrationDAOTreasury.t.sol`](./test/IntegrationDAOTreasury.t.sol) | DAOTreasuryAdapter | happy path withdrawal, over-cap rejected at execute |
 | [`test/IntegrationRoleGrant.t.sol`](./test/IntegrationRoleGrant.t.sol) | RoleGrantAdapter | grant on allowed account, attacker-grant blocked, frozen-role blocked |
 | [`test/IntegrationMerkleRoot.t.sol`](./test/IntegrationMerkleRoot.t.sol) | MerkleRootSetAdapter | announced root applied, unannounced root blocked at execute |
-| [`test/IntegrationOwnership.t.sol`](./test/IntegrationOwnership.t.sol) | OwnershipTransferAdapter | transfer to allowlisted, blocked to attacker, renounce default-disabled. Uses [`test/helpers/IntegrationBase.t.sol`](./test/helpers/IntegrationBase.t.sol) — shared module + Safe + signer scaffolding for future integration tests. |
+| [`test/IntegrationOwnership.t.sol`](./test/IntegrationOwnership.t.sol) | OwnershipTransferAdapter | transfer to allowlisted, blocked to attacker, renounce default-disabled |
+| [`test/IntegrationBoundedParameter.t.sol`](./test/IntegrationBoundedParameter.t.sol) | BoundedParameterAdapter | within-ratio change applied, change exceeding ratio cap blocked, above-absolute-max blocked |
+| [`test/IntegrationCrossChainPeer.t.sol`](./test/IntegrationCrossChainPeer.t.sol) | CrossChainPeerAdapter | pinned-peer setPeer applied, peer-substitution attack blocked |
+| [`test/IntegrationPausable.t.sol`](./test/IntegrationPausable.t.sol) | PausableAdapter | pause applied, unpause blocked under lock-once policy |
 
-The integration coverage demonstrates the module's adapter contract composes across action types — same module + same attestation flow drives any `IActionAdapter`.
+[`test/helpers/IntegrationBase.t.sol`](./test/helpers/IntegrationBase.t.sol) — shared scaffolding (module + MockSafe + signer set + signing helpers) used by tests after `IntegrationOwnership`. Reduces a new integration test to ~120 LOC vs ~250 LOC standalone.
+
+The integration coverage demonstrates the module's adapter contract composes across action types — same module + same attestation flow drives any `IActionAdapter`. **Every fork adapter has end-to-end integration coverage.**
 
 ### Module change (cherry-picked, also upstreamed)
 
