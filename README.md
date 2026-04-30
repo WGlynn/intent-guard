@@ -1,6 +1,8 @@
 # intentguard
 
-> **Fork notice.** This is a fork of [`uwecerron/intent-guard`](https://github.com/uwecerron/intent-guard) maintained for VibeSwap integration. See [`FORK.md`](./FORK.md) for the additional adapters (UUPS upgrades, treasury, LayerZero peers, AccessControl roles, Pausable, Ownable, bounded params), end-to-end integration tests, and an audit-readiness fix for the module's compile path.
+> **Fork notice.** This is a fork of [`uwecerron/intent-guard`](https://github.com/uwecerron/intent-guard) maintained for VibeSwap integration. The fork adds **8 production-shape adapters** (UUPS upgrades · treasury · LayerZero peers · AccessControl roles · Pausable · Ownable · bounded params · Merkle roots), **3 end-to-end integration tests** wiring module + adapter + Safe + target, an **audit-readiness fix** for the module's legacy-compile-pipeline stack budget (PR upstreamed), and supporting docs (adapter authoring guide · CI workflow · security policy · contracts inventory).
+>
+> **124 tests pass on the default Foundry profile** (no `--via-ir`). See [`FORK.md`](./FORK.md) for the inventory and [`docs/ADAPTERS.md`](./docs/ADAPTERS.md) for the authoring walkthrough.
 >
 > All credit for the underlying spec + reference implementation belongs to **Uwe Cerron** ([Traders Guild](https://www.tradersguild.global/)). The body of this README below is from upstream and applies to the original project.
 
