@@ -117,4 +117,36 @@ contract CrossChainPeerAdapterTest is Test {
         vm.expectRevert(CrossChainPeerAdapter.NotOwner.selector);
         adapter.setPeerPolicy(oapp, EID_ETH, true, PEER_ETH_LEGIT);
     }
+
+    // ============ adversarial: zero-address & invalid-EID checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter (no peer policies could ever be set). Must
+    /// fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(CrossChainPeerAdapter.ZeroOwner.selector);
+        new CrossChainPeerAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: LayerZero V2 reserves EID 0 as
+    /// invalid (the protocol treats it as "no chain"). Allowing the owner
+    /// to register a policy for EID 0 is a foot-gun: it would let signers
+    /// approve a `setPeer(0, peer)` call which is at best a no-op and at
+    /// worst leaves a phantom policy slot. Adapter rejects EID 0 at
+    /// policy-set time so it never enters the policy mapping.
+    function test_setPeerPolicy_revertsOnZeroEid() public {
+        vm.prank(owner);
+        vm.expectRevert(CrossChainPeerAdapter.ZeroEid.selector);
+        adapter.setPeerPolicy(oapp, 0, true, PEER_ETH_LEGIT);
+    }
+
+    /// @notice Adversarial review finding (corollary): without an
+    /// owner-set policy for EID 0, validate() must still reject any
+    /// `setPeer(0, peer)` calldata. Confirmed by the existing
+    /// EidNotAllowed default — this test just locks the behavior.
+    function test_validate_revertsOnZeroEid_noPolicySet() public {
+        bytes memory data = _setPeerCalldata(0, PEER_ETH_LEGIT);
+        vm.expectRevert(CrossChainPeerAdapter.EidNotAllowed.selector);
+        adapter.validate(oapp, 0, data, bytes32(0));
+    }
 }

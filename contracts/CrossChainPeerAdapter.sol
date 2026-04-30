@@ -54,6 +54,8 @@ contract CrossChainPeerAdapter is IActionAdapter {
     error BadSelector();
     error EidNotAllowed();
     error PeerMismatch();
+    error ZeroOwner();
+    error ZeroEid();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -61,16 +63,19 @@ contract CrossChainPeerAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
     /// @notice Register the policy for a given OApp + EID pair.
     /// @param oapp The local OApp contract address (the `target` in queue calls).
-    /// @param eid The LayerZero V2 endpoint ID being peered to.
+    /// @param eid The LayerZero V2 endpoint ID being peered to. EID 0 is
+    /// reserved/invalid in LayerZero V2 and is always rejected here.
     /// @param allowed Whether peering to this EID is permitted at all.
     /// @param expectedPeer The expected remote-chain peer address for this EID.
     /// Zero allows any peer (subject only to intent binding). Non-zero pins.
     function setPeerPolicy(address oapp, uint32 eid, bool allowed, bytes32 expectedPeer) external onlyOwner {
+        if (eid == 0) revert ZeroEid();
         peerPolicy[oapp][eid] = PeerPolicy({eidAllowed: allowed, expectedPeer: expectedPeer});
         emit PeerPolicySet(oapp, eid, allowed, expectedPeer);
     }
