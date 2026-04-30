@@ -1,0 +1,21 @@
+# Build configuration for the attester firmware.
+#
+# Default target is the M5Stack Cardputer (ESP32-S3-FN8 with 8MB flash).
+# Switch to a different target with `cargo build --target <triple>`.
+#
+# To build the host emulator (for renderer/CLI testing without hardware):
+#   cargo build --features target-host-emulator --no-default-features
+
+[build]
+target = "xtensa-esp32s3-none-elf"
+
+[target.xtensa-esp32s3-none-elf]
+runner = "espflash flash --monitor"
+linker = "rust-lld"
+rustflags = [
+  "-C", "link-arg=-nostartfiles",
+  "-C", "link-arg=-Wl,-Tlinkall.x",
+]
+
+[unstable]
+build-std = ["core", "alloc"]

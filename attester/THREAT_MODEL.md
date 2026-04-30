@@ -1,4 +1,4 @@
-# attester — Threat model
+# attester: Threat model
 
 This document enumerates what the attester defends against, what it doesn't, and what assumptions must hold for the defense to work. Pair with `SPEC.md`.
 

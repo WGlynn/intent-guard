@@ -1,4 +1,4 @@
-# attester — Specification
+# attester: Specification
 
 Version: 0.1 (draft)
 Status: Reference protocol open for review

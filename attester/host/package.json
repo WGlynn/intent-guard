@@ -1,0 +1,29 @@
+{
+  "name": "@intentguard/attester-host",
+  "version": "0.1.0",
+  "description": "Host-side bridge between a council member's laptop and the intentguard attester device.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "attester": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "attest": "tsx src/cli.ts attest",
+    "enroll": "tsx src/cli.ts enroll",
+    "emulate": "tsx src/cli.ts emulate"
+  },
+  "dependencies": {
+    "@intentguard/attester-renderer": "file:../renderer",
+    "@noble/curves": "^1.6.0",
+    "@noble/hashes": "^1.4.0",
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
