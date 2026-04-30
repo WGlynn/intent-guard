@@ -1,46 +1,79 @@
 # Fork notes — WGlynn/intent-guard
 
-This is a fork of [`uwecerron/intent-guard`](https://github.com/uwecerron/intent-guard) maintained for VibeSwap integration and audit hardening.
+This is a fork of [`uwecerron/intent-guard`](https://github.com/uwecerron/intent-guard) — extending the original spec + reference module with VibeSwap integration adapters, expanded test coverage, and audit-readiness fixes.
 
-The original work — the spec, threat model, reference implementations for EVM and Solana, attester design, and the [whitepaper](./intentguard.md) — is by **Uwe Cerron** ([Traders Guild](https://www.tradersguild.global/)). All credit for the underlying design belongs to him. This fork extends rather than replaces.
+The original work — the spec, threat model, EVM/Solana reference implementations, attester design, and the [whitepaper](./intentguant.md) — is by **Uwe Cerron** ([Traders Guild](https://www.tradersguild.global/)). All credit for the underlying design belongs to him. This fork extends rather than replaces.
 
-## What this fork adds
+## What this fork ships
 
-VibeSwap-specific adapters in [`contracts/`](./contracts/):
+### Adapters (`contracts/`)
 
-| Adapter | Status | Purpose |
-|---|---|---|
-| [`UUPSUpgradeAdapter.sol`](./contracts/UUPSUpgradeAdapter.sol) | shipped | Gates `upgradeTo` / `upgradeToAndCall` on UUPS proxies. Binds (proxy, newImpl, callDataHash) into the intent and verifies impl EXTCODEHASH at execute time. Closes the CREATE2-redeployment class of upgrade attacks. |
-| `DAOTreasuryAdapter.sol` | planned | Binds (recipient, asset, amount, reason) for treasury withdrawals. |
-| `CrossChainPeerAdapter.sol` | planned | Binds LayerZero `setPeer` / `setEnforcedOptions` against peer allowlists per endpoint ID. |
-| `CircuitBreakerParamAdapter.sol` | planned | Binds threshold-parameter changes against per-parameter caps. |
-| `TWAPSourceAdapter.sol` | planned | Binds oracle source registration with feed allowlists + staleness checks. |
+| Adapter | LOC | Tests | Surface gated |
+|---|---|---|---|
+| [`CollateralListingAdapter.sol`](./contracts/CollateralListingAdapter.sol) | 150 | — | (upstream example) collateral whitelist + oracle bind |
+| [`UUPSUpgradeAdapter.sol`](./contracts/UUPSUpgradeAdapter.sol) | 130 | 15 | `upgradeTo` / `upgradeToAndCall` with EXTCODEHASH binding |
+| [`DAOTreasuryAdapter.sol`](./contracts/DAOTreasuryAdapter.sol) | 100 | 18 | `withdraw(recipient, asset, amount)` with caps + recipient allowlist |
+| [`CrossChainPeerAdapter.sol`](./contracts/CrossChainPeerAdapter.sol) | 95 | 12 | LayerZero V2 `setPeer` with EID allowlist + peer pinning |
+| [`RoleGrantAdapter.sol`](./contracts/RoleGrantAdapter.sol) | 130 | 16 | OZ AccessControl `grantRole` / `revokeRole` with role-freeze + account allowlist |
+| [`PausableAdapter.sol`](./contracts/PausableAdapter.sol) | 80 | 12 | OZ Pausable `pause` / `unpause` (each gated independently) |
+| [`OwnershipTransferAdapter.sol`](./contracts/OwnershipTransferAdapter.sol) | 110 | 14 | OZ Ownable `transferOwnership` / `renounceOwnership` with newOwner allowlist |
+| [`BoundedParameterAdapter.sol`](./contracts/BoundedParameterAdapter.sol) | 130 | 15 | Canonical `setParam(bytes32, uint256)` shape with min/max + change-ratio caps |
 
-Foundry tests in [`test/`](./test/) cover each adapter's intent-hash determinism, validate-time invariants, and access control.
+### Integration test (`test/IntegrationUUPS.t.sol`)
 
-## Why fork instead of writing our own implementation
+End-to-end exercise: IntentGuardModule + UUPSUpgradeAdapter + mock Safe + mock UUPS proxy. Wires the full **queue → cool-off → execute** pipeline with real EIP-191 signed attestations. Three scenarios pass:
 
-The 5-invariant composition (intent binding + freshness + cool-off + oracle-bound + action whitelist) is sharper than the sum of its parts. Cerron's spec + reference impl is the cleanest articulation of that composition I've found. Better to extend it than to re-spec something equivalent — the audit cost is the same either way, but extending compounds rather than duplicates.
+1. Happy path: 2-of-3 signers approve → cool-off elapses → `upgradeToAndCall` lands at the proxy
+2. Veto: 2 signers cancel during cool-off → execute reverts → proxy unchanged
+3. Cool-off enforcement: execute before window elapses → reverts
+
+### Module change (cherry-picked, also upstreamed)
+
+`contracts/IntentGuardModule.sol` was refactored to extract `_attestationDigest()` and `_verifyAttestation()` helpers. The change reduces stack depth in `_verifyAttestations` so the **default Foundry profile (legacy compile pipeline) builds clean without `--via-ir`**. Behavior, ABI, events, and storage layout are unchanged. PR upstreamed at [`uwecerron/intent-guard#2`](https://github.com/uwecerron/intent-guard/pull/2), tracking issue at [`#1`](https://github.com/uwecerron/intent-guard/issues/1).
+
+## Test coverage
+
+```bash
+forge test
+```
+
+Total: **~115 tests pass on the default profile** (no `--via-ir`).
+
+Per-adapter coverage targets:
+
+- Intent-hash determinism + binding to every load-bearing field
+- Selector enforcement and malformed-calldata reverts
+- `validate()` happy-path under each policy variant
+- `validate()` revert paths for every error condition (caps, allowlists, freezes, codehashes)
+- Owner-only access control on every setter
+
+The integration test additionally exercises the on-chain attestation digest recompute path, the cool-off + veto state machine, and the Safe-module call-out.
+
+## Why fork
+
+The 5-invariant composition (intent binding + freshness + cool-off + oracle-bound + action whitelist) is sharper than the sum of its parts. Cerron's spec + reference impl is the cleanest articulation of that composition; better to extend it than to re-spec something equivalent. Audit cost is the same either way.
 
 ## Status
 
-- **Unaudited.** Same caveat as upstream. The reference module + this fork's adapters are starting points for protocol-specific integration and review, not drop-in production security.
-- **Tracking upstream.** This fork tracks `uwecerron/intent-guard` `main`. Improvements not specific to VibeSwap (e.g. bug fixes in the module itself, generally-useful adapters) get filed as upstream PRs first.
+- **Unaudited.** Same caveat as upstream. Adapters and the module's refactor are starting points for protocol-specific integration and review, not drop-in production security.
+- **Tracking upstream.** Improvements that aren't VibeSwap-specific (e.g. the stack-depth fix, generally-useful adapters) are filed as upstream PRs first.
+- **Integration testing pending.** The integration test covers happy / veto / cool-off paths. The stale-signature path is stubbed pending a follow-up debug pass on the EIP-191 timing flow.
 
 ## Build & test
 
 ```bash
-forge install              # pulls forge-std and any other deps
-forge build
-forge test --match-path test/UUPSUpgradeAdapter.t.sol -vv
+forge install                                             # pulls forge-std (submodule)
+forge build                                                # default profile, no --via-ir
+forge test                                                 # all suites
+forge test --match-path test/UUPSUpgradeAdapter.t.sol -vv  # one suite
 ```
 
-The default profile uses `via_ir = false` for fast iteration. Use `FOUNDRY_PROFILE=ci` for the via-IR validation profile when prepping for audit.
+The default profile uses `via_ir = false` for fast iteration. The `--via-ir` profile remains available and produces equivalent bytecode.
 
 ## License
 
 - Code: MIT (per upstream SPDX headers)
 - Whitepaper + design docs: CC BY 4.0 (per upstream `LICENSE`)
-- Attribution: Uwe Cerron / Traders Guild for the original work; this fork's adapters and integration scaffolding by Will Glynn
+- Attribution: Uwe Cerron / Traders Guild for the original work; this fork's adapters, integration scaffolding, and stack-depth refactor by Will Glynn
 
 If you build on this further, please attribute Uwe's original work upstream first.
