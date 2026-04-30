@@ -60,12 +60,12 @@ CBOR was chosen over JSON because (a) it's binary-stable across implementations,
 
 Every message has a `type` field. Defined types in v0.1:
 
-- `Hello` (host → device): probe; device responds with `HelloAck` containing firmware version, supported curve(s), pubkey identifier, and free RAM.
-- `Enroll` (host → device): one-time, generates a new keypair if no key is present, returns the public key. Idempotent on second call.
-- `ProposeIntent` (host → device): the main flow. Carries the intent payload to render and the metadata to sign over.
-- `IntentAck` (device → host): contains the signature, `signed_at` timestamp from the device's own counter, and the firmware version.
-- `IntentReject` (device → host): the user pressed CANCEL, or the renderer failed to decode, or the proposal was malformed. Includes a reason code.
-- `Status` (host → device): poll display state, last-seen proposal id, etc.
+- `Hello` (host -> device): probe; device responds with `HelloAck` containing firmware version, supported curve(s), pubkey identifier, and free RAM.
+- `Enroll` (host -> device): one-time, generates a new keypair if no key is present, returns the public key. Idempotent on second call.
+- `ProposeIntent` (host -> device): the main flow. Carries the intent payload to render and the metadata to sign over.
+- `IntentAck` (device -> host): contains the signature, `signed_at` timestamp from the device's own counter, and the firmware version.
+- `IntentReject` (device -> host): the user pressed CANCEL, or the renderer failed to decode, or the proposal was malformed. Includes a reason code.
+- `Status` (host -> device): poll display state, last-seen proposal id, etc.
 
 ### 4.1 ProposeIntent payload
 

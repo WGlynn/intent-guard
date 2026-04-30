@@ -54,7 +54,7 @@ function hex(bytes: Uint8Array): string {
   if (bytes.length <= 8) return Buffer.from(bytes).toString("hex");
   const head = Buffer.from(bytes.slice(0, 4)).toString("hex");
   const tail = Buffer.from(bytes.slice(-4)).toString("hex");
-  return `${head}…${tail}`;
+  return `${head}..${tail}`;
 }
 
 function formatUsd(micros: bigint): string {

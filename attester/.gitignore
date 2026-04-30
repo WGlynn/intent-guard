@@ -1,0 +1,7 @@
+renderer/node_modules/
+host/node_modules/
+renderer/dist/
+host/dist/
+firmware/target/
+.DS_Store
+*.log

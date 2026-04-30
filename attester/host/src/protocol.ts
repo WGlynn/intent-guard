@@ -90,6 +90,7 @@ export function cborEncode(v: CborValue): Uint8Array {
 }
 
 export function cborDecode(buf: Uint8Array): { value: CborValue; rest: Uint8Array } {
+  if (buf.length === 0) throw new Error("CBOR: empty input");
   const first = buf[0]!;
   const major = first >> 5;
   const info = first & 0x1f;
@@ -98,16 +99,20 @@ export function cborDecode(buf: Uint8Array): { value: CborValue; rest: Uint8Arra
     case 0: return { value: len, rest: r1 };
     case 2: {
       const n = Number(len);
+      if (!Number.isSafeInteger(n) || r1.length < n) throw new Error("CBOR: truncated byte string");
       return { value: r1.subarray(0, n), rest: r1.subarray(n) };
     }
     case 3: {
       const n = Number(len);
+      if (!Number.isSafeInteger(n) || r1.length < n) throw new Error("CBOR: truncated text string");
       return { value: new TextDecoder().decode(r1.subarray(0, n)), rest: r1.subarray(n) };
     }
     case 5: {
+      const entries = Number(len);
+      if (!Number.isSafeInteger(entries)) throw new Error("CBOR: map too large");
       const out: { [k: string]: CborValue } = {};
       let cur = r1;
-      for (let i = 0; i < Number(len); i++) {
+      for (let i = 0; i < entries; i++) {
         const k = cborDecode(cur);
         if (typeof k.value !== "string") throw new Error("non-string map key");
         const v = cborDecode(k.rest);
@@ -150,20 +155,30 @@ function cborEncodeUint(major: number, n: bigint): Uint8Array {
 
 function readUint(info: number, rest: Uint8Array): { value: bigint; rest: Uint8Array } {
   if (info < 24) return { value: BigInt(info), rest };
-  if (info === 24) return { value: BigInt(rest[0]!), rest: rest.subarray(1) };
+  if (info === 24) {
+    requireBytes(rest, 1);
+    return { value: BigInt(rest[0]!), rest: rest.subarray(1) };
+  }
   if (info === 25) {
+    requireBytes(rest, 2);
     const v = new DataView(rest.buffer, rest.byteOffset, 2).getUint16(0);
     return { value: BigInt(v), rest: rest.subarray(2) };
   }
   if (info === 26) {
+    requireBytes(rest, 4);
     const v = new DataView(rest.buffer, rest.byteOffset, 4).getUint32(0);
     return { value: BigInt(v), rest: rest.subarray(4) };
   }
   if (info === 27) {
+    requireBytes(rest, 8);
     const v = new DataView(rest.buffer, rest.byteOffset, 8).getBigUint64(0);
     return { value: v, rest: rest.subarray(8) };
   }
   throw new Error(`unsupported additional info ${info}`);
+}
+
+function requireBytes(rest: Uint8Array, n: number): void {
+  if (rest.length < n) throw new Error("CBOR: truncated integer");
 }
 
 function concat(parts: Uint8Array[]): Uint8Array {

@@ -35,6 +35,9 @@ impl Store {
         }
         let mut seed = [0u8; 32];
         rng.fill_bytes(&mut seed);
+        if seed.iter().all(|b| *b == 0) {
+            panic!("secure RNG returned all zeros");
+        }
         self.store_seed(&seed);
         Keypair::from_seed(seed)
     }

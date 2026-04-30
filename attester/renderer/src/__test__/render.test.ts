@@ -47,7 +47,7 @@ function eq<T>(name: string, actual: T, expected: T): void {
   });
   eq("WhitelistCollateral hash deterministic", Buffer.from(h1).toString("hex"), Buffer.from(h2).toString("hex"));
 
-  // Different network → different hash.
+  // Different network -> different hash.
   const hEvm = computeIntentHash({
     network: "evm", vault: new Uint8Array(32), nonce: 1n, actionKind: 1, actionArgs: args,
   });

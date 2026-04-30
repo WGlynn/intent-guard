@@ -9,11 +9,12 @@
 //                     --action-kind <u32>
 //                     --action-args-hex <hex>
 //
-// `enroll` returns the device pubkey. `attest` runs the full propose →
-// confirm → signature flow and prints the signature for the caller to
+// `enroll` returns the device pubkey. `attest` runs the full propose ->
+// confirm -> signature flow and prints the signature for the caller to
 // bundle into intentguard.attest.
 
 import { renderIntent, computeIntentHash } from "@intentguard/attester-renderer";
+import { randomBytes as nodeRandomBytes } from "node:crypto";
 import { openDevice, openEmulator, type AttesterDevice } from "./transport.js";
 
 interface Args {
@@ -144,9 +145,9 @@ async function main(): Promise<void> {
     const pk = r["device_pubkey"] as Uint8Array;
     const dev_signed_at = r["signed_at"] as bigint;
 
-    console.log("\n────────────────────────────────────────────────────");
+    console.log("\n----------------------------------------------------");
     console.log("  ATTESTER SIGNATURE");
-    console.log("────────────────────────────────────────────────────");
+    console.log("----------------------------------------------------");
     console.log("  pubkey:    ", hex(pk));
     console.log("  signed_at: ", dev_signed_at.toString());
     console.log("  signature: ", hex(sig));
@@ -172,9 +173,7 @@ function unhex(s: string): Uint8Array {
 }
 
 function randomBytes(n: number): Uint8Array {
-  const out = new Uint8Array(n);
-  for (let i = 0; i < n; i++) out[i] = Math.floor(Math.random() * 256);
-  return out;
+  return new Uint8Array(nodeRandomBytes(n));
 }
 
 main().catch((err) => {

@@ -142,7 +142,7 @@ New collateral listings are the hard case. If an asset does not yet have a deep,
 
 ### 5.5 Action whitelist
 
-Each guarded vault declares an explicit whitelist mapping `action_kind → allowed_targets → adapter`. Anything outside the whitelist is rejected, even if every other invariant passes. This prevents the "we'll just register a new harmless-looking action type" escalation. Adding a new action kind itself goes through intentguard and should use a longer cool-off than ordinary parameter changes. There is no emergency escape hatch.
+Each guarded vault declares an explicit whitelist mapping `action_kind -> allowed_targets -> adapter`. Anything outside the whitelist is rejected, even if every other invariant passes. This prevents the "we'll just register a new harmless-looking action type" escalation. Adding a new action kind itself goes through intentguard and should use a longer cool-off than ordinary parameter changes. There is no emergency escape hatch.
 
 ### 5.6 What is deliberately absent
 
@@ -273,7 +273,7 @@ Being honest about scope is what separates a real security primitive from theate
 
 **The legitimate cancel-channel must work.** The cool-off only matters if the legitimate signers can actually communicate during it. Operational practice (secure messaging, periodic queue reviews, third-party monitoring) is part of the deployment, not the code.
 
-**Cross-chain message intent is genuinely hard.** Bridge messages with "intent on chain A → effect on chain B" semantics are not closed by single-chain intent binding. This is open work.
+**Cross-chain message intent is genuinely hard.** Bridge messages with "intent on chain A -> effect on chain B" semantics are not closed by single-chain intent binding. This is open work.
 
 **Verifier and RPC compromise are not solved by signer intent.** The Kelp-style failure mode requires independent mitigations: multi-verifier bridge configuration, client diversity, RPC quorum reads, source-chain proof verification where possible, circuit breakers, and monitoring for impossible state transitions.
 

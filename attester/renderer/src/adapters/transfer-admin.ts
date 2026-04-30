@@ -39,5 +39,5 @@ function hex(bytes: Uint8Array): string {
   if (bytes.length <= 8) return Buffer.from(bytes).toString("hex");
   const head = Buffer.from(bytes.slice(0, 6)).toString("hex");
   const tail = Buffer.from(bytes.slice(-6)).toString("hex");
-  return `${head}…${tail}`;
+  return `${head}..${tail}`;
 }

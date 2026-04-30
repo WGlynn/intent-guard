@@ -108,20 +108,20 @@ Total: ~$22.50 + shipping.
 ### Wiring
 
 ```
-ESP32-S3 pin   →   peripheral
-GPIO 9         →   ST7789 SCK
-GPIO 10        →   ST7789 SDA (MOSI)
-GPIO 11        →   ST7789 RES
-GPIO 12        →   ST7789 DC
-GPIO 13        →   ST7789 CS
-GPIO 14        →   ST7789 BLK (backlight)
+ESP32-S3 pin   ->  peripheral
+GPIO 9         ->  ST7789 SCK
+GPIO 10        ->  ST7789 SDA (MOSI)
+GPIO 11        ->  ST7789 RES
+GPIO 12        ->  ST7789 DC
+GPIO 13        ->  ST7789 CS
+GPIO 14        ->  ST7789 BLK (backlight)
 
-GPIO 4         →   CONFIRM button (other leg to GND, internal pull-up)
-GPIO 5         →   CANCEL button (other leg to GND, internal pull-up)
+GPIO 4         ->  CONFIRM button (other leg to GND, internal pull-up)
+GPIO 5         ->  CANCEL button (other leg to GND, internal pull-up)
 
-USB D+/D-      →   ESP32-S3 USB peripheral (built-in)
-3V3, GND       →   shared rails
-LiPo +/-       →   TP4056 BAT+/BAT-, output to 3V3 rail
+USB D+/D-      ->  ESP32-S3 USB peripheral (built-in)
+3V3, GND       ->  shared rails
+LiPo +/-       ->  TP4056 BAT+/BAT-, output to 3V3 rail
 ```
 
 The ESP32-S3 has built-in USB serial/JTAG, so no separate USB-to-serial chip is needed. The display, buttons, and battery management are the only off-module parts.

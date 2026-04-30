@@ -114,9 +114,47 @@ MVP 2 can be:
 
 ## Files
 
-- `spec/ATTESTER_SPEC.md`: detailed protocol and threat model.
-- `firmware/README.md`: firmware requirements and non-goals.
+- `SPEC.md`: wire protocol, digest format, enrollment flow, and integration semantics.
+- `THREAT_MODEL.md`: defended cases, assumptions, and limits.
+- `BUILD.md`: reference hardware path and rollout tiers.
+- `renderer/`: TypeScript renderer, canonical intent hashing, adapters, and tests.
+- `host/`: USB serial host bridge and software emulator.
+- `firmware/`: no_std Rust firmware scaffold with matching on-device adapters.
 - `client/README.md`: host-client transport requirements.
+
+## How to use this folder today
+
+The useful development path is:
+
+1. Add an adapter in `renderer/src/adapters/`.
+2. Mirror the same adapter in `firmware/src/render.rs`.
+3. Add renderer test vectors for normal, boundary, and malformed payloads.
+4. Run the host emulator to exercise the signing flow before touching hardware.
+5. Wire the attester signature into intentguard as an additional quorum requirement.
+
+Example emulator flow:
+
+```sh
+cd attester/renderer
+npm test
+
+cd ../host
+npm run emulate
+```
+
+For a real device, replace `--emulator` with `--port <serial-path>` once firmware and secure storage are wired.
+
+## Review notes
+
+The attester must be judged on three byte-level invariants:
+
+| Invariant | Why it matters |
+| --- | --- |
+| Host renderer canonical bytes match firmware canonical bytes | Prevents the laptop from showing one intent while the device hashes another. |
+| Attester signature covers `vault`, `nonce`, `action_kind`, `intent_hash`, and `signed_at` | Prevents replay, proposal swapping, and stale durable-nonce style reuse. |
+| On-chain verifier recomputes the exact same digest | Prevents signatures from being accepted for a different proposal context. |
+
+Any new protocol adapter should ship with test vectors that can be consumed by the TypeScript renderer, firmware tests, and on-chain verifier tests.
 
 ## Non-goals
 

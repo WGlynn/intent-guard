@@ -62,13 +62,7 @@ fn decode_whitelist_collateral(args: &[u8]) -> Result<Decoded, DecodeError> {
     let oracle = &args[40..72];
     let max_deposit = u64::from_le_bytes(args[72..80].try_into().unwrap());
 
-    // Canonical bytes layout matches host's canonicalSerialise output for
-    // the equivalent object: keys sorted = fair_value_usd_micros, max_deposit_usd, oracle, token.
-    // (The host renderer does this automatically.)
-    let mut canonical: Vec<u8> = Vec::with_capacity(args.len());
-    // Reuse the wire layout for now; the on-chain guard validates the
-    // host's canonical serialisation against the same rules.
-    canonical.extend_from_slice(args);
+    let canonical = canonical_whitelist_collateral(token, fair_value, oracle, max_deposit);
 
     let mut lines: HVec<Line, MAX_LINES> = HVec::new();
     let _ = lines.push(Line {
@@ -103,8 +97,7 @@ fn decode_transfer_admin(args: &[u8]) -> Result<Decoded, DecodeError> {
     }
     let new_admin = &args[0..32];
 
-    let mut canonical: Vec<u8> = Vec::with_capacity(args.len());
-    canonical.extend_from_slice(args);
+    let canonical = canonical_transfer_admin(new_admin);
 
     let mut lines: HVec<Line, MAX_LINES> = HVec::new();
     let _ = lines.push(Line {
@@ -134,4 +127,55 @@ fn format_usd(micros: u64) -> heapless::String<MAX_LINE_LEN> {
     let mut s: heapless::String<MAX_LINE_LEN> = heapless::String::new();
     let _ = core::fmt::Write::write_fmt(&mut s, format_args!("${}.{:02}", dollars, cents));
     s
+}
+
+fn canonical_whitelist_collateral(token: &[u8], fair_value: u64, oracle: &[u8], max_deposit: u64) -> Vec<u8> {
+    let mut out = Vec::with_capacity(132);
+    encode_object_header(&mut out, 4);
+    encode_key(&mut out, "fair_value_usd_micros");
+    encode_u128(&mut out, fair_value as u128);
+    encode_key(&mut out, "max_deposit_usd");
+    encode_u128(&mut out, max_deposit as u128);
+    encode_key(&mut out, "oracle");
+    encode_bytes(&mut out, oracle);
+    encode_key(&mut out, "token");
+    encode_bytes(&mut out, token);
+    out
+}
+
+fn canonical_transfer_admin(new_admin: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(46);
+    encode_object_header(&mut out, 1);
+    encode_key(&mut out, "new_admin");
+    encode_bytes(&mut out, new_admin);
+    out
+}
+
+fn encode_object_header(out: &mut Vec<u8>, fields: usize) {
+    out.push(0x10);
+    encode_varint(out, fields);
+}
+
+fn encode_key(out: &mut Vec<u8>, key: &str) {
+    encode_varint(out, key.as_bytes().len());
+    out.extend_from_slice(key.as_bytes());
+}
+
+fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
+    out.push(0x02);
+    encode_varint(out, bytes.len());
+    out.extend_from_slice(bytes);
+}
+
+fn encode_u128(out: &mut Vec<u8>, value: u128) {
+    out.push(0x06);
+    out.extend_from_slice(&value.to_le_bytes());
+}
+
+fn encode_varint(out: &mut Vec<u8>, mut n: usize) {
+    while n >= 0x80 {
+        out.push(((n & 0x7f) as u8) | 0x80);
+        n >>= 7;
+    }
+    out.push((n & 0x7f) as u8);
 }
