@@ -43,12 +43,18 @@ contract DAOTreasuryAdapterFuzzTest is Test {
     }
 
     function testFuzz_validate_belowCapPasses(address recipient, uint256 amount) public view {
+        // Adapter rejects address(0) recipient unconditionally — exclude
+        // from the "passes" property.
+        vm.assume(recipient != address(0));
         amount = bound(amount, 0, CAP);
         bytes memory data = _withdraw(recipient, asset, amount);
         adapter.validate(treasury, 0, data, bytes32(0));
     }
 
     function testFuzz_validate_aboveCapReverts(address recipient, uint256 amount) public {
+        // ZeroRecipient fires before AmountExceedsCap; exclude zero-recipient
+        // inputs from the "above-cap reverts with AmountExceedsCap" property.
+        vm.assume(recipient != address(0));
         amount = bound(amount, CAP + 1, type(uint128).max);
         bytes memory data = _withdraw(recipient, asset, amount);
         vm.expectRevert(DAOTreasuryAdapter.AmountExceedsCap.selector);
@@ -58,6 +64,9 @@ contract DAOTreasuryAdapterFuzzTest is Test {
     function testFuzz_validate_unregisteredAssetReverts(address recipient, address randomAsset, uint256 amount)
         public
     {
+        // ZeroRecipient fires before AssetNotAllowed; exclude zero-recipient
+        // inputs from this property.
+        vm.assume(recipient != address(0));
         vm.assume(randomAsset != asset);
         amount = bound(amount, 0, CAP);
         bytes memory data = _withdraw(recipient, randomAsset, amount);
