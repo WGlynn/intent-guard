@@ -1,5 +1,11 @@
 # intentguard
 
+> **Fork notice.** This is a fork of [`uwecerron/intent-guard`](https://github.com/uwecerron/intent-guard) maintained for VibeSwap integration. See [`FORK.md`](./FORK.md) for the additional adapters (UUPS upgrades, treasury, LayerZero peers, AccessControl roles, Pausable, Ownable, bounded params), end-to-end integration tests, and an audit-readiness fix for the module's compile path.
+>
+> All credit for the underlying spec + reference implementation belongs to **Uwe Cerron** ([Traders Guild](https://www.tradersguild.global/)). The body of this README below is from upstream and applies to the original project.
+
+---
+
 Intentguard is an on-chain guardrail for privileged DeFi operations. It makes a dangerous action prove:
 
 1. what the signers intended,
