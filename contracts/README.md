@@ -15,6 +15,7 @@
 | `OwnershipTransferAdapter.sol` | fork | Gates OZ Ownable `transferOwnership` / `renounceOwnership`. NewOwner allowlist + per-target renounce-disabled default. |
 | `BoundedParameterAdapter.sol` | fork | Gates the canonical `setParam(bytes32, uint256)` shape. Min/max bounds + change-ratio cap from registered baseline. |
 | `MerkleRootSetAdapter.sol` | fork | Gates `setMerkleRoot(bytes32)` for allowlist-via-Merkle protocols. Pre-announcement gate prevents malicious roots from being signed. |
+| `TimelockControllerAdminAdapter.sol` | fork | Gates OZ `TimelockController.updateDelay`. Per-target [minDelay, maxDelay] band blocks pre-signed delay-collapse attacks. |
 
 ## How they compose
 

@@ -20,6 +20,7 @@ The original work — the spec, threat model, EVM/Solana reference implementatio
 | [`OwnershipTransferAdapter.sol`](./contracts/OwnershipTransferAdapter.sol) | 110 | 14 | OZ Ownable `transferOwnership` / `renounceOwnership` with newOwner allowlist |
 | [`BoundedParameterAdapter.sol`](./contracts/BoundedParameterAdapter.sol) | 130 | 15 | Canonical `setParam(bytes32, uint256)` shape with min/max + change-ratio caps |
 | [`MerkleRootSetAdapter.sol`](./contracts/MerkleRootSetAdapter.sol) | 100 | 13 | `setMerkleRoot(bytes32)` for allowlists; pre-announcement gate prevents malicious roots |
+| [`TimelockControllerAdminAdapter.sol`](./contracts/TimelockControllerAdminAdapter.sol) | 95 | 21 | OZ `TimelockController.updateDelay` with per-target [min, max] delay band — blocks pre-signed delay-collapse attacks |
 
 ### Integration tests
 
