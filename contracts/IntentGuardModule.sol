@@ -282,6 +282,16 @@ contract IntentGuardModule {
             );
         }
 
+        // Defensive bottom-of-loop recheck per upstream review feedback
+        // (https://github.com/uwecerron/intent-guard/pull/2). Functionally
+        // equivalent to a `valid >= vault.threshold` assert because every
+        // loop iteration above either reverts or runs to completion, so
+        // the iteration count equals `attestations.length`. Re-reading the
+        // calldata length here (rather than tracking a `uint256 valid`
+        // counter inside the loop) avoids adding a stack local that would
+        // push `_verifyAttestations` back over the legacy compile pipeline's
+        // stack budget the refactor was written to fit under.
+        if (attestations.length < vault.threshold) revert InsufficientSignatures();
         if (newest - oldest > vault.freshWindowSecs) revert SignatureNotFresh();
     }
 
