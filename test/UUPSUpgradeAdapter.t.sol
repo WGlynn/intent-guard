@@ -75,7 +75,12 @@ contract UUPSUpgradeAdapterTest is Test {
         assertTrue(hashA != hashB, "different post-upgrade calldata must produce different intents");
     }
 
-    function test_intentHash_differentImpls_differentHashes() public view {
+    function test_intentHash_differentImpls_differentHashes() public {
+        // Both impls must be registered for both intentHash() calls to succeed
+        // (after the Cerron fix, intentHash fails closed for unregistered impls).
+        vm.prank(owner);
+        adapter.setImplCodehash(proxy, address(implEvil), implEvilCodeHash);
+
         bytes memory dataV2 = abi.encodeWithSignature("upgradeTo(address)", address(implV2));
         bytes memory dataEvil = abi.encodeWithSignature("upgradeTo(address)", address(implEvil));
 
@@ -85,13 +90,41 @@ contract UUPSUpgradeAdapterTest is Test {
         assertTrue(hashV2 != hashEvil, "different impls must produce different intent hashes");
     }
 
-    function test_intentHash_differentTargets_differentHashes() public view {
+    function test_intentHash_differentTargets_differentHashes() public {
+        // A second proxy must be registered to get two valid intent hashes.
+        address proxy2 = address(0xCAFE);
+        vm.startPrank(owner);
+        adapter.setProxyAllowed(proxy2, true);
+        adapter.setImplCodehash(proxy2, address(implV2), implV2CodeHash);
+        vm.stopPrank();
+
         bytes memory data = abi.encodeWithSignature("upgradeTo(address)", address(implV2));
 
         bytes32 hashA = adapter.intentHash(proxy, 0, data);
-        bytes32 hashB = adapter.intentHash(address(0xCAFE), 0, data);
+        bytes32 hashB = adapter.intentHash(proxy2, 0, data);
 
         assertTrue(hashA != hashB, "different targets must produce different intent hashes");
+    }
+
+    /// @notice After Cerron's PR #2 review: the codehash is now part of
+    /// the signed intent. Different registered codehashes for the same
+    /// (proxy, impl) MUST produce different intent hashes — this is the
+    /// property that closes the policy-substitution attack.
+    function test_intentHash_differentCodehashes_differentHashes() public {
+        bytes memory data = abi.encodeWithSignature("upgradeTo(address)", address(implV2));
+        bytes32 hashOriginal = adapter.intentHash(proxy, 0, data);
+
+        // Owner re-registers impl with a DIFFERENT codehash. Even though
+        // (proxy, value, impl, callDataHash) are unchanged, the intent
+        // hash MUST change because the codehash is now bound.
+        vm.prank(owner);
+        adapter.setImplCodehash(proxy, address(implV2), keccak256("different-bytecode"));
+
+        bytes32 hashAfter = adapter.intentHash(proxy, 0, data);
+        assertTrue(
+            hashOriginal != hashAfter,
+            "intent hash MUST change when registered codehash changes (codehash is bound into signed bytes)"
+        );
     }
 
     function test_intentHash_revertsOnUnknownSelector() public {
@@ -104,6 +137,23 @@ contract UUPSUpgradeAdapterTest is Test {
         // Selector + only 16 bytes (instead of full 32-byte address slot)
         bytes memory data = abi.encodePacked(adapter.UPGRADE_TO_SELECTOR(), bytes16(0));
         vm.expectRevert(UUPSUpgradeAdapter.BadSelector.selector);
+        adapter.intentHash(proxy, 0, data);
+    }
+
+    /// @notice intentHash() must fail closed for unallowed proxies — signers
+    /// should not be able to produce a hash for a target validate() would
+    /// later reject. Hardened in response to Cerron's PR #2 review.
+    function test_intentHash_revertsOnUnallowedProxy() public {
+        bytes memory data = abi.encodeWithSignature("upgradeTo(address)", address(implV2));
+        vm.expectRevert(UUPSUpgradeAdapter.ProxyNotAllowed.selector);
+        adapter.intentHash(address(0xDEAD), 0, data);
+    }
+
+    /// @notice intentHash() must fail closed for unregistered impls.
+    /// Hardened in response to Cerron's PR #2 review.
+    function test_intentHash_revertsOnUnregisteredImpl() public {
+        bytes memory data = abi.encodeWithSignature("upgradeTo(address)", address(implEvil));
+        vm.expectRevert(UUPSUpgradeAdapter.ImplNotAllowed.selector);
         adapter.intentHash(proxy, 0, data);
     }
 
@@ -179,6 +229,31 @@ contract UUPSUpgradeAdapterTest is Test {
         adapter.validate(proxy, 0, data, bytes32(0));
     }
 
+    /// @notice Owner must NOT be able to register an EOA / empty-code
+    /// address as an implementation — upgrading the proxy to an empty-code
+    /// address would brick it. Hardened in response to Cerron's PR #2 review.
+    function test_setImplCodehash_revertsOnEmptyCodeImpl() public {
+        address eoa = address(0xE0A);
+        // Sanity: address has no code.
+        assertEq(eoa.code.length, 0, "test precondition: eoa must have no code");
+
+        vm.prank(owner);
+        vm.expectRevert(UUPSUpgradeAdapter.EmptyCodeImpl.selector);
+        adapter.setImplCodehash(proxy, eoa, keccak256("anything"));
+    }
+
+    /// @notice Zero-codehash "remove from allowlist" must remain usable
+    /// even when the impl address is empty (e.g. cleanup after a
+    /// SELFDESTRUCT). Only registration of a non-zero codehash against
+    /// an empty impl is rejected.
+    function test_setImplCodehash_zeroCodehashAllowedForEmptyImpl() public {
+        address eoa = address(0xE0A);
+        vm.prank(owner);
+        // No revert — zero codehash is the explicit "remove from allowlist"
+        // sentinel and must be accepted unconditionally.
+        adapter.setImplCodehash(proxy, eoa, bytes32(0));
+    }
+
     // ============ adversarial: length & zero-address checks ============
 
     /// @notice Adversarial review finding: `_decode` enforces an exact length
@@ -208,5 +283,92 @@ contract UUPSUpgradeAdapterTest is Test {
     function test_constructor_revertsOnZeroOwner() public {
         vm.expectRevert(UUPSUpgradeAdapter.ZeroOwner.selector);
         new UUPSUpgradeAdapter(address(0));
+    }
+
+    // ============ ADVERSARIAL REGRESSION: policy-substitution attack ============
+
+    /// @notice Direct reproduction of the vulnerability Uwe Cerron flagged
+    /// in PR #2 of `uwecerron/intent-guard`.
+    ///
+    /// THE ATTACK (as it would have worked against the OLD adapter):
+    ///   1. Adapter owner registers `(proxy, implV2, codehash_X)` where
+    ///      codehash_X is the hash of legitimate v2 bytecode.
+    ///   2. Signers approve an upgrade. Under the OLD intent shape, the
+    ///      signed bytes bound only `(target, value, impl_addr, callDataHash)` —
+    ///      NOT the codehash. The codehash was only checked at execute
+    ///      time against MUTABLE adapter policy.
+    ///   3. Attacker (with control over the impl address via CREATE2 +
+    ///      SELFDESTRUCT) redeploys `implV2` at the same address but
+    ///      with MALICIOUS bytecode — codehash_Y.
+    ///   4. A colluding/compromised adapter owner calls
+    ///      `setImplCodehash(proxy, implV2, codehash_Y)` to update policy
+    ///      to match the new (malicious) bytecode.
+    ///   5. Under the OLD shape, the original signatures still verified
+    ///      against the same intent hash (codehash wasn't in the signed
+    ///      bytes), and validate() now passes (policy was updated). The
+    ///      proxy gets upgraded to malicious code WITHOUT any new
+    ///      signatures.
+    ///
+    /// THE FIX: bind the codehash INTO the signed intent. After this
+    /// fix, step (4) changes the intent hash itself — old signatures
+    /// bound a hash computed against codehash_X, but the policy now
+    /// stores codehash_Y, so anyone re-deriving the intent gets a
+    /// DIFFERENT hash and the old signatures don't verify. The
+    /// belt-and-suspenders codehash-equality check in validate() also
+    /// catches the divergence independently.
+    ///
+    /// This test exercises BOTH layers explicitly.
+    function test_adversarial_policySubstitutionAttackBlocked() public {
+        bytes memory upgradeData = abi.encodeWithSignature(
+            "upgradeTo(address)",
+            address(implV2)
+        );
+
+        // === Step 1 + 2: legitimate registration + signing-time intent ===
+        // implV2 already registered with its real codehash in setUp().
+        bytes32 codehash_X = address(implV2).codehash;
+        assertEq(adapter.getImplCodehash(proxy, address(implV2)), codehash_X);
+
+        // The intent hash signers see at signing time. Under the OLD
+        // shape this was independent of the registered codehash. Under
+        // the fix, codehash_X is bound into the result.
+        bytes32 intentAtSign = adapter.intentHash(proxy, 0, upgradeData);
+
+        // === Step 3: attacker swaps the bytecode at implV2's address ===
+        // Simulate CREATE2 + SELFDESTRUCT redeployment by replacing the
+        // runtime code at the same address. The on-chain extcodehash
+        // diverges from codehash_X.
+        bytes memory maliciousRuntime = hex"60016000526001601ff3"; // small distinct stub
+        vm.etch(address(implV2), maliciousRuntime);
+        bytes32 codehash_Y = address(implV2).codehash;
+        assertTrue(codehash_X != codehash_Y, "attack precondition: redeploy must change codehash");
+
+        // === Step 4: compromised owner updates policy to new codehash ===
+        vm.prank(owner);
+        adapter.setImplCodehash(proxy, address(implV2), codehash_Y);
+
+        // === LAYER 1 — signed-intent layer rejects the attack ===
+        // Re-derive the intent hash from current state. Because the fix
+        // binds the codehash, the recomputed hash MUST differ from the
+        // hash signers signed. Any system that re-derives the intent at
+        // execute time (the IntentGuardModule does) will see a different
+        // hash and reject the old signatures as not matching.
+        bytes32 intentAfterAttack = adapter.intentHash(proxy, 0, upgradeData);
+        assertTrue(
+            intentAtSign != intentAfterAttack,
+            "ATTACK BLOCKED AT SIGNED-INTENT LAYER: intent hash MUST change when policy codehash changes; otherwise the old signatures could re-authorize new bytecode"
+        );
+
+        // === LAYER 2 — validate() codehash-mismatch catches divergence ===
+        // Model the more common case where the bytecode was swapped but
+        // the policy was NOT updated (owner not colluding). Reset the
+        // registered codehash back to codehash_X. validate() must reject
+        // because the live extcodehash (codehash_Y) ≠ stored expected
+        // (codehash_X).
+        vm.prank(owner);
+        adapter.setImplCodehash(proxy, address(implV2), codehash_X);
+
+        vm.expectRevert(UUPSUpgradeAdapter.CodehashMismatch.selector);
+        adapter.validate(proxy, 0, upgradeData, bytes32(0));
     }
 }

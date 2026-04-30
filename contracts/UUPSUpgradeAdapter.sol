@@ -7,28 +7,39 @@ import {IActionAdapter} from "./IntentGuardModule.sol";
 ///
 /// Decodes the two UUPS upgrade selectors (`upgradeTo(address)` and
 /// `upgradeToAndCall(address,bytes)`) and binds the load-bearing fields
-/// — target proxy, new implementation, and the hash of any post-upgrade
-/// initializer calldata — into a typed intent hash signers approve.
+/// — target proxy, new implementation, the hash of any post-upgrade
+/// initializer calldata, AND the expected runtime EXTCODEHASH of the
+/// new implementation — into a typed intent hash signers approve.
 ///
-/// `validate()` enforces three invariants at execute time:
+/// Binding the codehash INTO the signed intent (not just checking it
+/// at execute time against mutable adapter policy) is what closes the
+/// CREATE2-redeployment + SELFDESTRUCT class of upgrade attacks. If
+/// only validate() checked the codehash against a mutable policy, an
+/// attacker who redeployed the implementation address with different
+/// code AND a colluding/compromised adapter owner who updated the
+/// policy could re-authorize an upgrade against signatures whose
+/// signed bytes never bound the new bytecode. With the codehash
+/// inside intentHash(), the signature itself authorizes the EXACT
+/// bytecode — any divergence reproduces a different intent hash and
+/// the signatures don't verify.
+///
+/// `validate()` enforces three invariants at execute time as
+/// defense-in-depth:
 ///
 ///   1. The proxy is on the adapter's proxy allowlist.
 ///   2. The new implementation is on the per-proxy implementation allowlist.
 ///   3. The new implementation's runtime EXTCODEHASH matches the codehash
 ///      that was registered for it when the policy was set.
 ///
-/// Invariant (3) is the load-bearing check. A malicious actor who pre-signed
-/// an upgrade approval for an implementation address cannot redeploy that
-/// address with different code between sign-time and execute-time, because
-/// the on-chain EXTCODEHASH is checked at execute against the registered
-/// hash. This closes the CREATE2-redeployment + SELFDESTRUCT class of
-/// upgrade-front-running attacks.
+/// `intentHash()` ALSO fails closed for unallowed proxies / unregistered
+/// implementations, so signers cannot accidentally produce a valid hash
+/// for a target the adapter would later reject.
 contract UUPSUpgradeAdapter is IActionAdapter {
     bytes4 public constant UPGRADE_TO_SELECTOR = bytes4(keccak256("upgradeTo(address)"));
     bytes4 public constant UPGRADE_TO_AND_CALL_SELECTOR = bytes4(keccak256("upgradeToAndCall(address,bytes)"));
 
     bytes32 public constant UPGRADE_INTENT_TYPEHASH = keccak256(
-        "UUPSUpgrade(address target,uint256 value,address newImplementation,bytes32 callDataHash)"
+        "UUPSUpgrade(address target,uint256 value,address newImplementation,bytes32 callDataHash,bytes32 expectedCodehash)"
     );
 
     struct ProxyPolicy {
@@ -50,6 +61,7 @@ contract UUPSUpgradeAdapter is IActionAdapter {
     error ImplNotAllowed();
     error CodehashMismatch();
     error ZeroOwner();
+    error EmptyCodeImpl();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -74,10 +86,16 @@ contract UUPSUpgradeAdapter is IActionAdapter {
     ///
     /// Recommended workflow: deploy the new implementation, read its
     /// EXTCODEHASH off-chain, register it here BEFORE the upgrade
-    /// proposal is queued. If the implementation is later redeployed at
-    /// the same address (e.g. via CREATE2 + SELFDESTRUCT), the new
-    /// codehash will not match and `validate()` reverts.
+    /// proposal is signed. Because intentHash() reads this codehash and
+    /// binds it into the signed bytes, signers approve the EXACT
+    /// bytecode, not just the address.
+    ///
+    /// Reverts with `EmptyCodeImpl` if the implementation address has
+    /// no deployed code (would brick the proxy on upgrade). The zero
+    /// codehash is still accepted as the explicit "remove from allowlist"
+    /// operation regardless of the impl's current code state.
     function setImplCodehash(address proxy, address impl, bytes32 expectedCodehash) external onlyOwner {
+        if (expectedCodehash != bytes32(0) && impl.code.length == 0) revert EmptyCodeImpl();
         proxyPolicy[proxy].allowedImplCodehash[impl] = expectedCodehash;
         emit ImplAllowed(proxy, impl, expectedCodehash);
     }
@@ -91,11 +109,30 @@ contract UUPSUpgradeAdapter is IActionAdapter {
     }
 
     /// @inheritdoc IActionAdapter
-    function intentHash(address target, uint256 value, bytes calldata data) external pure returns (bytes32) {
+    /// @dev `view` (not `pure`) because it reads the registered codehash
+    /// from policy and binds it INTO the returned hash. This is what
+    /// makes the signed intent authorize a specific bytecode, not just
+    /// an address. Fails closed for unallowed proxies and unregistered
+    /// impls so signers cannot produce a hash for a target validate()
+    /// would later reject.
+    function intentHash(address target, uint256 value, bytes calldata data) external view returns (bytes32) {
+        ProxyPolicy storage policy = proxyPolicy[target];
+        if (!policy.allowed) revert ProxyNotAllowed();
+
         (address newImpl, bytes memory callData) = _decode(data);
+        bytes32 expectedCodehash = policy.allowedImplCodehash[newImpl];
+        if (expectedCodehash == bytes32(0)) revert ImplNotAllowed();
+
         bytes32 callDataHash = keccak256(callData);
         return keccak256(
-            abi.encode(UPGRADE_INTENT_TYPEHASH, target, value, newImpl, callDataHash)
+            abi.encode(
+                UPGRADE_INTENT_TYPEHASH,
+                target,
+                value,
+                newImpl,
+                callDataHash,
+                expectedCodehash
+            )
         );
     }
 
@@ -108,6 +145,12 @@ contract UUPSUpgradeAdapter is IActionAdapter {
         bytes32 expected = policy.allowedImplCodehash[newImpl];
         if (expected == bytes32(0)) revert ImplNotAllowed();
 
+        // Belt-and-suspenders: even though the signed intent now binds
+        // expectedCodehash, recompute and compare against the currently-
+        // deployed runtime codehash. This guards against the policy
+        // being mutated between intent-hash time and execute time AND
+        // against the implementation address being redeployed with
+        // different code.
         bytes32 actual = newImpl.codehash;
         if (actual != expected) revert CodehashMismatch();
     }

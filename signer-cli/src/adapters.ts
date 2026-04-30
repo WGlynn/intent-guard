@@ -8,29 +8,39 @@ import {
 
 // ============ UUPSUpgradeAdapter ============
 
+/**
+ * After the Cerron PR #2 fix to `UUPSUpgradeAdapter`, the signed intent
+ * binds the expected runtime codehash of the new implementation in
+ * addition to the address. Signers approve the EXACT bytecode, not just
+ * the address — closing the CREATE2-redeployment + policy-substitution
+ * attack. The off-chain hash builder MUST include `expectedCodehash` to
+ * stay in sync with the on-chain `intentHash()`.
+ */
 export type UUPSUpgradeIntent = {
   target: Hex;
   value: bigint;
   newImplementation: Hex;
   callDataHash: Hex;
+  expectedCodehash: Hex;
 };
 
 export function uupsUpgradeIntentHash(intent: UUPSUpgradeIntent): Hex {
   return keccak256(
     encodeAbiParameters(
       parseAbiParameters(
-        "bytes32 typeHash, address target, uint256 value, address newImplementation, bytes32 callDataHash",
+        "bytes32 typeHash, address target, uint256 value, address newImplementation, bytes32 callDataHash, bytes32 expectedCodehash",
       ),
       [
         keccak256(
           stringToBytes(
-            "UUPSUpgrade(address target,uint256 value,address newImplementation,bytes32 callDataHash)",
+            "UUPSUpgrade(address target,uint256 value,address newImplementation,bytes32 callDataHash,bytes32 expectedCodehash)",
           ),
         ),
         intent.target,
         intent.value,
         intent.newImplementation,
         intent.callDataHash,
+        intent.expectedCodehash,
       ],
     ),
   );
