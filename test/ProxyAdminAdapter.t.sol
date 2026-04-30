@@ -131,4 +131,29 @@ contract ProxyAdminAdapterTest is Test {
         vm.expectRevert(ProxyAdminAdapter.NotOwner.selector);
         adapter.setImplCodehash(proxyAdmin, proxy, address(implV2), implV2CodeHash);
     }
+
+    // ============ adversarial: zero-owner & length-validation checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter (no proxy/impl policies could ever be set).
+    /// Must fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(ProxyAdminAdapter.ZeroOwner.selector);
+        new ProxyAdminAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: `_decode` enforced an exact length
+    /// for `upgrade(address,address)` but the `upgradeAndCall` branch
+    /// performed no length sanity check before calling `abi.decode`.
+    /// Malformed inputs reverted with the wrong error class. Adapter now
+    /// requires at least 4 + 128 bytes (selector + 2 addresses + bytes
+    /// offset + bytes length) and surfaces BadSelector cleanly.
+    function test_intentHash_revertsOnTruncatedUpgradeAndCall() public {
+        bytes memory data = abi.encodePacked(
+            adapter.UPGRADE_AND_CALL_SELECTOR(),
+            bytes16(0)
+        );
+        vm.expectRevert(ProxyAdminAdapter.BadSelector.selector);
+        adapter.intentHash(proxyAdmin, 0, data);
+    }
 }

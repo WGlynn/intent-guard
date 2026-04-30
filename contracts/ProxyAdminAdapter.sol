@@ -57,6 +57,7 @@ contract ProxyAdminAdapter is IActionAdapter {
     error ProxyNotAllowed();
     error ImplNotAllowed();
     error CodehashMismatch();
+    error ZeroOwner();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -64,6 +65,7 @@ contract ProxyAdminAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -126,6 +128,15 @@ contract ProxyAdminAdapter is IActionAdapter {
             (proxy, newImpl) = abi.decode(data[4:], (address, address));
             callData = "";
         } else if (selector == UPGRADE_AND_CALL_SELECTOR) {
+            // Minimum ABI-encoding of (address, address, bytes) is:
+            //   32 bytes (proxy slot)
+            // + 32 bytes (impl slot)
+            // + 32 bytes (offset to bytes)
+            // + 32 bytes (bytes length)
+            // = 128 bytes minimum after the selector. Reject anything
+            // shorter with BadSelector so callers get a clean failure
+            // mode instead of a downstream abi.decode revert.
+            if (data.length < 4 + 128) revert BadSelector();
             (proxy, newImpl, callData) = abi.decode(data[4:], (address, address, bytes));
         } else {
             revert BadSelector();
