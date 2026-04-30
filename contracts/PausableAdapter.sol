@@ -46,6 +46,7 @@ contract PausableAdapter is IActionAdapter {
     error NotOwner();
     error BadSelector();
     error ActionNotAllowed();
+    error ZeroOwner();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -53,6 +54,7 @@ contract PausableAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 

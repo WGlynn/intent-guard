@@ -109,4 +109,23 @@ contract PausableAdapterTest is Test {
         vm.expectRevert(PausableAdapter.NotOwner.selector);
         adapter.setTargetPolicy(target, false, false);
     }
+
+    // ============ adversarial: zero-address & empty-calldata checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter (no target policies could ever be set). Must
+    /// fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(PausableAdapter.ZeroOwner.selector);
+        new PausableAdapter(address(0));
+    }
+
+    /// @notice Adversarial regression: empty calldata must revert with
+    /// BadSelector. The exact-length check `data.length != 4` in
+    /// _decodeSelector handles this, but no test pinned the behavior.
+    function test_intentHash_revertsOnEmptyCalldata() public {
+        bytes memory data = "";
+        vm.expectRevert(PausableAdapter.BadSelector.selector);
+        adapter.intentHash(target, 0, data);
+    }
 }
