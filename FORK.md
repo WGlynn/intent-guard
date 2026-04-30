@@ -29,6 +29,7 @@ Three end-to-end suites, each wiring `IntentGuardModule` + an adapter + a mock S
 | [`test/IntegrationUUPS.t.sol`](./test/IntegrationUUPS.t.sol) | UUPSUpgradeAdapter | happy path, veto blocks execution, cool-off enforcement |
 | [`test/IntegrationDAOTreasury.t.sol`](./test/IntegrationDAOTreasury.t.sol) | DAOTreasuryAdapter | happy path withdrawal, over-cap rejected at execute |
 | [`test/IntegrationRoleGrant.t.sol`](./test/IntegrationRoleGrant.t.sol) | RoleGrantAdapter | grant on allowed account, attacker-grant blocked, frozen-role blocked |
+| [`test/IntegrationMerkleRoot.t.sol`](./test/IntegrationMerkleRoot.t.sol) | MerkleRootSetAdapter | announced root applied, unannounced root blocked at execute |
 
 The integration coverage demonstrates the module's adapter contract composes across action types — same module + same attestation flow drives any `IActionAdapter`.
 
