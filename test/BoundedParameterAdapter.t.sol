@@ -143,4 +143,33 @@ contract BoundedParameterAdapterTest is Test {
         vm.expectRevert(BoundedParameterAdapter.NotOwner.selector);
         adapter.updateBaseline(target, KEY_VOLUME_CAP, 5_000_000e18);
     }
+
+    // ============ adversarial: zero-owner & inverted-bounds checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter. Must fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(BoundedParameterAdapter.ZeroOwner.selector);
+        new BoundedParameterAdapter(address(0));
+    }
+
+    /// @notice Adversarial review finding: setting a policy with
+    /// `minValue > maxValue` produced a silently-unusable policy — the
+    /// (target, key) pair would appear "active" to off-chain observers but
+    /// every validate() call would revert with BelowMin or AboveMax. Now
+    /// rejected at policy-set time so owners notice the typo immediately.
+    function test_setParamPolicy_revertsOnInvertedBounds() public {
+        vm.prank(owner);
+        vm.expectRevert(BoundedParameterAdapter.InvalidBounds.selector);
+        adapter.setParamPolicy(target, KEY_VOLUME_CAP, true, 1000, 100, 0, 500);
+    }
+
+    /// @notice Adversarial review finding (corollary): a disabled (allowed=false)
+    /// policy can still carry any sentinel min/max — only active policies
+    /// must satisfy the bounds invariant. Locks this carve-out.
+    function test_setParamPolicy_invertedBoundsAllowedWhenDisabled() public {
+        vm.prank(owner);
+        // No revert: policy is being deactivated; bounds are sentinel only.
+        adapter.setParamPolicy(target, KEY_VOLUME_CAP, false, 1000, 100, 0, 500);
+    }
 }

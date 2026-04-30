@@ -68,6 +68,8 @@ contract BoundedParameterAdapter is IActionAdapter {
     error BelowMin();
     error AboveMax();
     error ExceedsChangeRatio();
+    error ZeroOwner();
+    error InvalidBounds();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -75,6 +77,7 @@ contract BoundedParameterAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
@@ -87,6 +90,13 @@ contract BoundedParameterAdapter is IActionAdapter {
         uint256 maxChangeBps,
         uint256 baseline
     ) external onlyOwner {
+        // Reject inverted bounds. With minValue > maxValue every newValue
+        // would fail validate (BelowMin or AboveMax), but the policy would
+        // silently exist on-chain and look "active" via getParamPolicy.
+        // Fail loud at policy-set time so owners notice the mistake.
+        // The check only applies when allowed = true (a disabled policy
+        // can carry any sentinel values).
+        if (allowed && minValue > maxValue) revert InvalidBounds();
         paramPolicy[target][key] = ParamPolicy({
             allowed: allowed,
             minValue: minValue,
