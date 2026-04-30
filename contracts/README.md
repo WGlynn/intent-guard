@@ -7,6 +7,7 @@
 | `IntentGuardModule.sol` | upstream + fork stack-depth refactor (PR #2) | The guarded execution core. Vault config, proposal state machine, attestation verification. |
 | `CollateralListingAdapter.sol` | upstream | Example adapter — collateral whitelist with oracle-bound fair-value check. |
 | `UUPSUpgradeAdapter.sol` | fork | Gates `upgradeTo` / `upgradeToAndCall` on UUPS proxies. EXTCODEHASH-bound. |
+| `BeaconUpgradeAdapter.sol` | fork | Gates `upgradeTo` on OZ `UpgradeableBeacon`. One Beacon serves N BeaconProxies — fan-out leverage. EXTCODEHASH-bound, per-beacon impl allowlist. |
 | `DAOTreasuryAdapter.sol` | fork | Gates `withdraw(recipient, asset, amount)`. Per-asset cap + optional recipient allowlist. |
 | `CrossChainPeerAdapter.sol` | fork | Gates LayerZero V2 `setPeer`. Per-OApp EID allowlist + optional peer pinning. |
 | `RoleGrantAdapter.sol` | fork | Gates OZ AccessControl `grantRole` / `revokeRole`. Per-(target, role) freeze + account allowlist for grants. |

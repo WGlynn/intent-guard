@@ -12,6 +12,7 @@ The original work — the spec, threat model, EVM/Solana reference implementatio
 |---|---|---|---|
 | [`CollateralListingAdapter.sol`](./contracts/CollateralListingAdapter.sol) | 150 | — | (upstream example) collateral whitelist + oracle bind |
 | [`UUPSUpgradeAdapter.sol`](./contracts/UUPSUpgradeAdapter.sol) | 130 | 15 | `upgradeTo` / `upgradeToAndCall` with EXTCODEHASH binding |
+| [`BeaconUpgradeAdapter.sol`](./contracts/BeaconUpgradeAdapter.sol) | 115 | 19 | `upgradeTo` on OZ `UpgradeableBeacon` — one beacon, N proxies, EXTCODEHASH-bound |
 | [`DAOTreasuryAdapter.sol`](./contracts/DAOTreasuryAdapter.sol) | 100 | 18 | `withdraw(recipient, asset, amount)` with caps + recipient allowlist |
 | [`CrossChainPeerAdapter.sol`](./contracts/CrossChainPeerAdapter.sol) | 95 | 12 | LayerZero V2 `setPeer` with EID allowlist + peer pinning |
 | [`RoleGrantAdapter.sol`](./contracts/RoleGrantAdapter.sol) | 130 | 16 | OZ AccessControl `grantRole` / `revokeRole` with role-freeze + account allowlist |
