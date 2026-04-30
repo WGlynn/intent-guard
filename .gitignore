@@ -1,0 +1,26 @@
+# Foundry build artifacts
+cache/
+out/
+out-*/
+broadcast/
+**/.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Node (clients/, signer-cli/)
+node_modules/
+dist/
+*.tgz
+
+# Local configs / secrets
+.env
+.env.local
+*.local.json
+
+# Anchor / Solana build (just in case)
+target/
+.anchor/
+test-ledger/
