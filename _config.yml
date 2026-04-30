@@ -1,0 +1,56 @@
+# GitHub Pages configuration for intentguard.
+#
+# Theme: Cayman, the GitHub-stock theme used for project pages.
+# Edit `title`, `description`, and `url` if you change the repo name or
+# move to a custom domain.
+
+title: intentguard
+description: A primitive for closing the web2 attack vector in DeFi. Solana and EVM. Open source.
+
+# Used by Cayman to render the project header. If you publish under a custom
+# domain (e.g. tradersguild.global), set `url:` to that domain and add a CNAME
+# file at the repo root containing the same domain.
+url: ""
+baseurl: ""
+
+theme: jekyll-theme-cayman
+
+# Make repo-internal links work the same in markdown and on GitHub Pages.
+plugins:
+  - jekyll-relative-links
+  - jekyll-seo-tag
+
+relative_links:
+  enabled: true
+  collections: true
+
+# Files Jekyll should NOT copy to the published site.
+exclude:
+  - Cargo.toml
+  - Cargo.lock
+  - foundry.toml
+  - "**/Cargo.toml"
+  - "**/Cargo.lock"
+  - "**/target"
+  - "**/node_modules"
+  - "**/*.rs"
+  - "**/*.sol"
+  - "**/*.ts"
+  - "**/*.json"
+  - "**/*.toml"
+  - signer-cli
+  - solana
+  - contracts
+  - evm
+  - .gitignore
+  - LICENSE
+
+# SEO defaults
+defaults:
+  - scope:
+      path: ""
+    values:
+      author: Uwe Cerron
+      twitter:
+        username: traders_guild
+        card: summary_large_image

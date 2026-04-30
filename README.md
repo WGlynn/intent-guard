@@ -10,17 +10,40 @@ Intentguard is an on-chain guardrail for privileged DeFi operations. It makes a 
 
 This repository currently contains a design paper plus reference implementation scaffolds for EVM and Solana. Treat the code as a starting point for review and protocol-specific integration, not an audited drop-in security product.
 
+## Why founders should care
+
+If you run a DeFi protocol, your biggest risk may not be a smart-contract bug. It may be one legitimate signer approving the wrong thing at the wrong time.
+
+Audits, multisigs, hardware wallets, and bug bounties are necessary, but they do not prove that a signer understood the real effect of an admin action. A compromised laptop, fake integration partner, malicious RPC, or misleading signing flow can still turn a valid council signature into a protocol-ending event.
+
+Intentguard matters because it gives founders an operational control for the highest-leverage failure point in a protocol: privileged action execution.
+
+For a founder, that means:
+
+- **Protect user funds:** upgrades, admin transfers, collateral listings, oracle changes, and treasury moves get a second layer of on-chain verification.
+- **Protect the team:** council members are no longer expected to personally decode dangerous calldata under pressure.
+- **Protect governance credibility:** every sensitive action has a public queue, clear intent, visible approvals, and a veto path.
+- **Protect the protocol's runway:** one social-engineered signer flow should not be enough to destroy years of work, liquidity, and trust.
+- **Protect integrations:** lenders, market makers, custodians, and institutional partners can see that admin power is constrained by process, not just vibes.
+
+The founder-level takeaway: intentguard turns "trust our multisig" into "our multisig can only execute fresh, explicit, reviewable, vetoable actions." That is a stronger story for users, investors, auditors, exchanges, and your own team.
+
 ## Layout
 
-- `intentguard.md` — whitepaper and threat model.
-- `contracts/IntentGuardModule.sol` — EVM Safe-compatible guarded execution module.
-- `contracts/CollateralListingAdapter.sol` — example adapter for a collateral-listing action.
-- `solana/programs/intentguard/src/lib.rs` — Anchor-style Solana program scaffold.
-- `signer-cli/src/intent.ts` — TypeScript helpers for intent and attestation hashes.
+- `intentguard.md`: whitepaper and threat model.
+- `contracts/IntentGuardModule.sol`: EVM Safe-compatible guarded execution module.
+- `contracts/CollateralListingAdapter.sol`: example adapter for a collateral-listing action.
+- `solana/programs/intentguard/src/lib.rs`: Anchor-style Solana program scaffold.
+- `signer-cli/src/intent.ts`: TypeScript helpers for intent and attestation hashes.
+- `docs/HOWTO.md`: step-by-step tutorial for protocol teams and councils.
 
 ## One-sentence description
 
 Intentguard is an on-chain guardrail that makes every dangerous protocol action prove what signers meant, what the transaction does, and whether the approval is still fresh before it can execute.
+
+## Tutorial
+
+Start with [`docs/HOWTO.md`](docs/HOWTO.md). It walks through the operational lifecycle: choosing protected actions, defining schemas, writing adapters, configuring a vault, collecting fresh signer attestations, queueing, monitoring, vetoing, and executing on EVM or Solana.
 
 ## EVM integration
 

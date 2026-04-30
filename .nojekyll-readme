@@ -1,0 +1,5 @@
+DO NOT add a .nojekyll file to this repo. We rely on Jekyll to render the
+landing page (index.md) and apply the Cayman theme. The presence of a
+.nojekyll file disables Jekyll processing.
+
+This file exists only as a reminder, in case anyone considers adding one.
