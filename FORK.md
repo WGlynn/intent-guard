@@ -18,14 +18,19 @@ The original work — the spec, threat model, EVM/Solana reference implementatio
 | [`PausableAdapter.sol`](./contracts/PausableAdapter.sol) | 80 | 12 | OZ Pausable `pause` / `unpause` (each gated independently) |
 | [`OwnershipTransferAdapter.sol`](./contracts/OwnershipTransferAdapter.sol) | 110 | 14 | OZ Ownable `transferOwnership` / `renounceOwnership` with newOwner allowlist |
 | [`BoundedParameterAdapter.sol`](./contracts/BoundedParameterAdapter.sol) | 130 | 15 | Canonical `setParam(bytes32, uint256)` shape with min/max + change-ratio caps |
+| [`MerkleRootSetAdapter.sol`](./contracts/MerkleRootSetAdapter.sol) | 100 | 13 | `setMerkleRoot(bytes32)` for allowlists; pre-announcement gate prevents malicious roots |
 
-### Integration test (`test/IntegrationUUPS.t.sol`)
+### Integration tests
 
-End-to-end exercise: IntentGuardModule + UUPSUpgradeAdapter + mock Safe + mock UUPS proxy. Wires the full **queue → cool-off → execute** pipeline with real EIP-191 signed attestations. Three scenarios pass:
+Three end-to-end suites, each wiring `IntentGuardModule` + an adapter + a mock Safe + a mock target through the full **queue → cool-off → execute** pipeline with real EIP-191 signed attestations:
 
-1. Happy path: 2-of-3 signers approve → cool-off elapses → `upgradeToAndCall` lands at the proxy
-2. Veto: 2 signers cancel during cool-off → execute reverts → proxy unchanged
-3. Cool-off enforcement: execute before window elapses → reverts
+| Test | Adapter | Scenarios |
+|---|---|---|
+| [`test/IntegrationUUPS.t.sol`](./test/IntegrationUUPS.t.sol) | UUPSUpgradeAdapter | happy path, veto blocks execution, cool-off enforcement |
+| [`test/IntegrationDAOTreasury.t.sol`](./test/IntegrationDAOTreasury.t.sol) | DAOTreasuryAdapter | happy path withdrawal, over-cap rejected at execute |
+| [`test/IntegrationRoleGrant.t.sol`](./test/IntegrationRoleGrant.t.sol) | RoleGrantAdapter | grant on allowed account, attacker-grant blocked, frozen-role blocked |
+
+The integration coverage demonstrates the module's adapter contract composes across action types — same module + same attestation flow drives any `IActionAdapter`.
 
 ### Module change (cherry-picked, also upstreamed)
 
