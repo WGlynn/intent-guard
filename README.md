@@ -116,3 +116,9 @@ The current Solana program includes the state machine and attestation shape, but
 ## Status
 
 Unaudited. Do not deploy as-is to secure funds.
+
+## Contributors
+
+Add yourself here when you contribute.
+
+- Uwe Cerron, creator
