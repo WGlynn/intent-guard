@@ -147,4 +147,23 @@ contract RoleGrantAdapterTest is Test {
         vm.expectRevert(RoleGrantAdapter.NotOwner.selector);
         adapter.setAllowedAccount(target, ROLE_ADMIN, account, true);
     }
+
+    // ============ adversarial: zero-address & malformed-calldata checks ============
+
+    /// @notice Adversarial review finding: deploying with `owner = address(0)`
+    /// would brick the adapter (no role policies or account allowlists could
+    /// ever be set). Must fail closed at construction.
+    function test_constructor_revertsOnZeroOwner() public {
+        vm.expectRevert(RoleGrantAdapter.ZeroOwner.selector);
+        new RoleGrantAdapter(address(0));
+    }
+
+    /// @notice Adversarial regression: malformed grant/revoke calldata where
+    /// the selector is correct but the args are truncated must revert with
+    /// BadSelector (locked behavior — exact-length check in _decode).
+    function test_intentHash_revertsOnTruncatedGrant() public {
+        bytes memory data = abi.encodePacked(adapter.GRANT_ROLE_SELECTOR(), bytes16(0));
+        vm.expectRevert(RoleGrantAdapter.BadSelector.selector);
+        adapter.intentHash(target, 0, data);
+    }
 }

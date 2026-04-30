@@ -64,6 +64,7 @@ contract RoleGrantAdapter is IActionAdapter {
     error RoleNotAllowed();
     error RoleFrozen();
     error AccountNotAllowed();
+    error ZeroOwner();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -71,6 +72,7 @@ contract RoleGrantAdapter is IActionAdapter {
     }
 
     constructor(address owner_) {
+        if (owner_ == address(0)) revert ZeroOwner();
         owner = owner_;
     }
 
